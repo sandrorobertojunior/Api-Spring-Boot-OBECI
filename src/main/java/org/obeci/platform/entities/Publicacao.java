@@ -43,7 +43,7 @@ public class Publicacao {
     private Boolean isPublic;
 
     @JdbcTypeCode(SqlTypes.ARRAY)
-    @Column(name = "alunos_marcados", columnDefinition = "long[]")
+    @Column(name = "alunos_marcados", columnDefinition = "int[]")
     private List<Long> alunosMarcados = new ArrayList<>();
 
     @CreatedDate
