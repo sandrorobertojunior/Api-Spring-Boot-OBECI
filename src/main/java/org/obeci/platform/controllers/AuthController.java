@@ -1,7 +1,7 @@
-package com.server.coester.controllers;
+package org.obeci.platform.controllers;
 
-import com.server.coester.entities.Usuario;
-import com.server.coester.services.UsuarioService;
+import org.obeci.platform.entities.Usuario;
+import org.obeci.platform.services.UsuarioService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 

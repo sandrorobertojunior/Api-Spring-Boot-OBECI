@@ -1,8 +1,8 @@
-package com.server.coester.services;
+package org.obeci.platform.services;
 
 
-import com.server.coester.entities.Usuario;
-import com.server.coester.repositories.UsuarioRepository;
+import org.obeci.platform.entities.Usuario;
+import org.obeci.platform.repositories.UsuarioRepository;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 import java.util.Optional;

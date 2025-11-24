@@ -1,6 +1,6 @@
-package com.server.coester.repositories;
+package org.obeci.platform.repositories;
 
-import com.server.coester.entities.Usuario;
+import org.obeci.platform.entities.Usuario;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;

@@ -1,4 +1,4 @@
-package com.server.coester.entities;
+package org.obeci.platform.entities;
 
 import io.hypersistence.utils.hibernate.type.array.ListArrayType;
 import jakarta.persistence.*;

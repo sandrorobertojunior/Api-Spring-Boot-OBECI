@@ -1,13 +1,13 @@
-package com.server.coester;
+package org.obeci.platform;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 
 @SpringBootApplication
-public class CoesterApplication {
+public class PlatformApplication {
 
 	public static void main(String[] args) {
-		SpringApplication.run(CoesterApplication.class, args);
+		SpringApplication.run(PlatformApplication.class, args);
 	}
 
 }

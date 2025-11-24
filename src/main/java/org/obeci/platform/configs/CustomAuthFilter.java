@@ -1,5 +1,5 @@
-package com.server.coester.configs;
-import com.server.coester.services.UsuarioService;
+package org.obeci.platform.configs;
+import org.obeci.platform.services.UsuarioService;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;

@@ -1,10 +1,10 @@
 spring:
   application:
-    name: api-login
+    name: platform
   datasource:
-    url: jdbc:postgresql://localhost:5432/coesterdb
-    username: admin
-    password: admin
+    url: jdbc:postgresql://the-fool.site:5432/obecidb
+    username: obeci
+    password: '#Projeto10'
     driver-class-name: org.postgresql.Driver
   jpa:
     hibernate:

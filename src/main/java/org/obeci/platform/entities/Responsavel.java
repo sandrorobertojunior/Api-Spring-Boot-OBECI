@@ -1,4 +1,4 @@
-package com.server.coester.entities;
+package org.obeci.platform.entities;
 
 import jakarta.persistence.Entity;
 import jakarta.persistence.EntityListeners;
