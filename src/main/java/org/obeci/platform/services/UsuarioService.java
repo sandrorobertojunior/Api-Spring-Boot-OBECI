@@ -1,14 +1,18 @@
 package org.obeci.platform.services;
 
-
 import org.obeci.platform.entities.Usuario;
 import org.obeci.platform.repositories.UsuarioRepository;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.core.userdetails.User;
+import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.core.userdetails.UserDetailsService;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 import java.util.Optional;
 
 @Service
-public class UsuarioService {
+public class UsuarioService implements UserDetailsService {
 
     private final UsuarioRepository usuarioRepository;
     private final BCryptPasswordEncoder passwordEncoder;
@@ -19,7 +23,6 @@ public class UsuarioService {
     }
 
     public Usuario register(Usuario usuario) {
-
         // Verifica se já existe email
         if (usuarioRepository.findByEmail(usuario.getEmail()).isPresent()) {
             throw new RuntimeException("Email já existe");
@@ -44,6 +47,18 @@ public class UsuarioService {
     // Método auxiliar para verificar credenciais
     public boolean validateCredentials(String email, String password) {
         return login(email, password).isPresent();
+    }
+
+    @Override
+    public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
+        Usuario usuario = usuarioRepository.findByEmail(username)
+                .orElseThrow(() -> new UsernameNotFoundException("Usuário não encontrado: " + username));
+
+        return User.builder()
+                .username(usuario.getEmail())
+                .password(usuario.getPassword())
+                .authorities("USER") // Default authority
+                .build();
     }
 }
 

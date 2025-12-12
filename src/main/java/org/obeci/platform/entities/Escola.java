@@ -27,27 +27,15 @@ public class Escola {
     private String nome;
 
     @Column(nullable = false)
-    private Long direcaoId;
-
-    @Column(nullable = false)
-    private String endereco;
-
-    @Column(nullable = false)
-    private String numero;
-
-    @Column(nullable = false)
     private Boolean isActive;
 
     public Escola() {
 
     }
 
-    public Escola(String nome, Long direcaoId, String endereco, String numero, Boolean isActive) {
+    public Escola(String nome, Boolean isActive) {
         this();
         this.nome = nome;
-        this.direcaoId = direcaoId;
-        this.endereco = endereco;
-        this.numero = numero;
         this.isActive = isActive;
     }
 }

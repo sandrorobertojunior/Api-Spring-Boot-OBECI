@@ -43,8 +43,8 @@ public class Publicacao {
     private Boolean isPublic;
 
     @JdbcTypeCode(SqlTypes.ARRAY)
-    @Column(name = "alunos_marcados", columnDefinition = "int[]")
-    private List<Long> alunosMarcados = new ArrayList<>();
+    @Column(name = "hashtags", columnDefinition = "text[]")
+    private List<String> hashtags = new ArrayList<>();
 
     @CreatedDate
     @Column(nullable = false)
@@ -58,7 +58,7 @@ public class Publicacao {
 
     }
 
-    public Publicacao(Long id, Long turmaId, Long escolaId, Boolean isPublic, String title, String content, List<Long> alunosMarcados, LocalDateTime dataModificacao) {
+    public Publicacao(Long id, Long turmaId, Long escolaId, Boolean isPublic, String title, String content, List<String> hashtags, LocalDateTime dataModificacao) {
         this();
         this.id = id;
         this.turmaId = turmaId;
@@ -66,7 +66,7 @@ public class Publicacao {
         this.isPublic = isPublic;
         this.title = title;
         this.content = content;
-        this.alunosMarcados = alunosMarcados;
+        this.hashtags = hashtags;
         this.dataModificacao = dataModificacao;
     }
 }
