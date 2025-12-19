@@ -4,6 +4,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
@@ -38,9 +39,25 @@ public class SecurityConfiguration {
             .csrf(csrf -> csrf.disable())
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(authz -> authz
-                .requestMatchers("/api/**").authenticated()
-                .requestMatchers("/auth/**").permitAll()
-                .requestMatchers("/").permitAll()
+                // Registro de usuário só pode ser realizado por ADMIN
+                .requestMatchers(HttpMethod.POST, "/auth/register").hasRole("ADMIN")
+                // Login e logout abertos (logout pode ser feito autenticado, mas manteremos aberto)
+                .requestMatchers("/auth/login", "/auth/logout", "/auth/me").permitAll()
+                // CRUD de usuários somente por ADMIN
+                .requestMatchers("/api/usuarios/**").hasRole("ADMIN")
+                // Escola: leitura autenticada, escrita somente ADMIN
+                .requestMatchers(HttpMethod.GET, "/api/escolas/**").authenticated()
+                .requestMatchers(HttpMethod.POST, "/api/escolas/**").hasRole("ADMIN")
+                .requestMatchers(HttpMethod.PUT, "/api/escolas/**").hasRole("ADMIN")
+                .requestMatchers(HttpMethod.DELETE, "/api/escolas/**").hasRole("ADMIN")
+                // Turma: leitura autenticada, escrita somente ADMIN
+                .requestMatchers(HttpMethod.GET, "/api/turmas/**").authenticated()
+                .requestMatchers(HttpMethod.POST, "/api/turmas/**").hasRole("ADMIN")
+                .requestMatchers(HttpMethod.PUT, "/api/turmas/**").hasRole("ADMIN")
+                .requestMatchers(HttpMethod.DELETE, "/api/turmas/**").hasRole("ADMIN")
+                // Publicação: neste exemplo, exigimos autenticação para todos
+                .requestMatchers("/api/publicacoes/**").authenticated()
+                // Qualquer outro endpoint exige autenticação
                 .anyRequest().authenticated()
             );
 
@@ -57,7 +74,13 @@ public class SecurityConfiguration {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOriginPatterns(Arrays.asList("*"));
+        // Em produção, defina explicitamente os domínios do frontend.
+        // Wildcard não funciona com credenciais (cookies). Ajuste conforme ambiente.
+        configuration.setAllowedOrigins(Arrays.asList(
+            "http://localhost:3000",
+            "http://localhost:3001",
+            "http://26.134.41.191:3000"
+        ));
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(Arrays.asList("*"));
         configuration.setAllowCredentials(true);

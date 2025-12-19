@@ -13,6 +13,9 @@ public class TurmaService {
     @Autowired
     private TurmaRepository turmaRepository;
 
+    @Autowired
+    private InstrumentoService instrumentoService;
+
     public List<Turma> getAllTurmas() {
         return turmaRepository.findAll();
     }
@@ -22,7 +25,13 @@ public class TurmaService {
     }
 
     public Turma createTurma(Turma turma) {
-        return turmaRepository.save(turma);
+        Turma saved = turmaRepository.save(turma);
+        // Cria automaticamente um Instrumento vazio para a turma
+        try {
+            instrumentoService.createEmptyForTurma(saved.getId());
+        } catch (Exception ignored) {
+        }
+        return saved;
     }
 
     public Turma updateTurma(Long id, Turma turmaDetails) {

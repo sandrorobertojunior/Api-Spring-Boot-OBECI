@@ -22,6 +22,12 @@ public interface UsuarioRepository extends JpaRepository<Usuario, Long> {
     // Verificar se username existe
     boolean existsByUsername(String username);
 
+    // Buscar por CPF
+    Optional<Usuario> findByCpf(String cpf);
+
+    // Verificar se CPF existe
+    boolean existsByCpf(String cpf);
+
     // Buscar usuários por role (usando PostgreSQL array)
     @Query(value = "SELECT * FROM usuarios WHERE :role = ANY(array_roles)", nativeQuery = true)
     List<Usuario> findByRole(@Param("role") String role);

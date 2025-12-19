@@ -1,6 +1,9 @@
 package org.obeci.platform.controllers;
 
 import org.obeci.platform.entities.Escola;
+import org.obeci.platform.dtos.EscolaCreateRequest;
+import org.obeci.platform.dtos.EscolaUpdateRequest;
+import jakarta.validation.Valid;
 import org.obeci.platform.services.EscolaService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
@@ -11,7 +14,6 @@ import java.util.Optional;
 
 @RestController
 @RequestMapping("/api/escolas")
-@CrossOrigin(origins = "*")
 public class EscolaController {
 
     @Autowired
@@ -30,13 +32,20 @@ public class EscolaController {
     }
 
     @PostMapping
-    public ResponseEntity<Escola> createEscola(@RequestBody Escola escola) {
+    public ResponseEntity<Escola> createEscola(@Valid @RequestBody EscolaCreateRequest request) {
+        Escola escola = new Escola();
+        escola.setNome(request.getNome());
+        escola.setIsActive(request.getIsActive());
+        // request.getCidade() presente no DTO, não persistido atualmente
         Escola createdEscola = escolaService.createEscola(escola);
         return ResponseEntity.ok(createdEscola);
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<Escola> updateEscola(@PathVariable Long id, @RequestBody Escola escolaDetails) {
+    public ResponseEntity<Escola> updateEscola(@PathVariable Long id, @Valid @RequestBody EscolaUpdateRequest request) {
+        Escola escolaDetails = new Escola();
+        escolaDetails.setNome(request.getNome());
+        escolaDetails.setIsActive(request.getIsActive());
         Escola updatedEscola = escolaService.updateEscola(id, escolaDetails);
         if (updatedEscola != null) {
             return ResponseEntity.ok(updatedEscola);
