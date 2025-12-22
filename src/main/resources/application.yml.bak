@@ -2,9 +2,9 @@ spring:
   application:
     name: platform
   datasource:
-    url: jdbc:postgresql://the-fool.site:5432/obecidb
-    username: obeci
-    password: "#Projeto10"
+    url: jdbc:postgresql://localhost:5432/coesterdb
+    username: admin
+    password: admin
     driver-class-name: org.postgresql.Driver
   jpa:
     hibernate:
