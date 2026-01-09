@@ -17,14 +17,15 @@ import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
-import java.util.Arrays;
-
 @Configuration
 @EnableWebSecurity
 public class SecurityConfiguration {
 
     @Autowired
     private JwtRequestFilter jwtRequestFilter;
+
+    @Autowired
+    private AppCorsProperties corsProperties;
 
     // Bean para criptografia de senha
     @Bean
@@ -42,7 +43,10 @@ public class SecurityConfiguration {
                 // Registro de usuário só pode ser realizado por ADMIN
                 .requestMatchers(HttpMethod.POST, "/auth/register").hasRole("ADMIN")
                 // Login e logout abertos (logout pode ser feito autenticado, mas manteremos aberto)
-                .requestMatchers("/auth/login", "/auth/logout", "/auth/me").permitAll()
+                .requestMatchers("/auth/login", "/auth/logout").permitAll()
+                // /auth/me: GET pode ser aberto (retorna 401 se não houver token), PUT exige autenticação
+                .requestMatchers(HttpMethod.GET, "/auth/me").permitAll()
+                .requestMatchers(HttpMethod.PUT, "/auth/me").authenticated()
                 // CRUD de usuários somente por ADMIN
                 .requestMatchers("/api/usuarios/**").hasRole("ADMIN")
                 // Escola: leitura autenticada, escrita somente ADMIN
@@ -74,16 +78,10 @@ public class SecurityConfiguration {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        // Em produção, defina explicitamente os domínios do frontend.
-        // Wildcard não funciona com credenciais (cookies). Ajuste conforme ambiente.
-        configuration.setAllowedOrigins(Arrays.asList(
-            "http://localhost:3000",
-            "http://localhost:3001",
-            "http://26.134.41.191:3000"
-        ));
-        configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS"));
-        configuration.setAllowedHeaders(Arrays.asList("*"));
-        configuration.setAllowCredentials(true);
+        configuration.setAllowedOrigins(corsProperties.getAllowedOrigins());
+        configuration.setAllowedMethods(corsProperties.getAllowedMethods());
+        configuration.setAllowedHeaders(corsProperties.getAllowedHeaders());
+        configuration.setAllowCredentials(corsProperties.isAllowCredentials());
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", configuration);
         return source;

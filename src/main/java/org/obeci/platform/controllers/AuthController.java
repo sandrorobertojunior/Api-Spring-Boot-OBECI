@@ -1,10 +1,10 @@
 package org.obeci.platform.controllers;
 
 import org.obeci.platform.configs.JwtUtil;
+import org.obeci.platform.configs.TokenCookieService;
 import org.obeci.platform.entities.Usuario;
 import org.obeci.platform.services.UsuarioService;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.ResponseCookie;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -28,6 +28,8 @@ public class AuthController {
 
     private final UsuarioService usuarioService;
 
+    private final TokenCookieService tokenCookieService;
+
     @Autowired
     private AuthenticationManager authenticationManager;
 
@@ -37,8 +39,9 @@ public class AuthController {
     @Autowired
     private JwtUtil jwtUtil;
 
-    public AuthController(UsuarioService usuarioService) {
+    public AuthController(UsuarioService usuarioService, TokenCookieService tokenCookieService) {
         this.usuarioService = usuarioService;
+        this.tokenCookieService = tokenCookieService;
     }
 
     // Registro de usuário
@@ -59,56 +62,32 @@ public class AuthController {
                 new UsernamePasswordAuthenticationToken(usuario.getEmail(), usuario.getPassword())
             );
         } catch (Exception e) {
-            // Em falha de login, garantir remoção de qualquer cookie de sessão existente
-            ResponseCookie clearCookie = ResponseCookie
-                .from("token", "")
-                .httpOnly(true)
-                .secure(false) // Em produção use true (HTTPS)
-                .sameSite("Lax")
-                .path("/")
-                .maxAge(0)
-                .build();
+            // Falha de login: remove cookie de sessão para evitar estado inconsistênte no cliente.
             return ResponseEntity.status(401)
-                    .header(HttpHeaders.SET_COOKIE, clearCookie.toString())
+                    .header(HttpHeaders.SET_COOKIE, tokenCookieService.clearAuthCookie().toString())
                     .body("Usuário ou senha inválidos");
         }
 
         final UserDetails userDetails = userDetailsService.loadUserByUsername(usuario.getEmail());
         final String jwt = jwtUtil.generateToken(userDetails.getUsername());
 
-        // Preferência de produção: enviar o JWT em cookie HttpOnly.
-        ResponseCookie authCookie = ResponseCookie
-            .from("token", jwt)
-            .httpOnly(true)
-            .secure(false) // Em produção use true (HTTPS)
-            .sameSite("Lax")
-            .path("/")
-            .maxAge(60 * 15) // expira em 15 minutos (exemplo)
-            .build();
-
         Map<String, String> response = new HashMap<>();
         response.put("token", jwt);
         response.put("username", userDetails.getUsername());
 
+        // Cookie HttpOnly é a forma preferida (principalmente em produção).
+        // Manter "token" no corpo serve para compatibilidade com clientes antigos.
         return ResponseEntity.ok()
-                .header(HttpHeaders.SET_COOKIE, authCookie.toString())
+            .header(HttpHeaders.SET_COOKIE, tokenCookieService.createAuthCookie(jwt).toString())
                 .body(response);
     }
 
     // Endpoint de logout para limpar o cookie HttpOnly.
     @PostMapping("/logout")
     public ResponseEntity<?> logout() {
-        ResponseCookie clearCookie = ResponseCookie
-            .from("token", "")
-            .httpOnly(true)
-            .secure(false) // Em produção use true (HTTPS)
-            .sameSite("Lax")
-            .path("/")
-            .maxAge(0)
-            .build();
-
+        // Logout: expira o cookie no cliente.
         return ResponseEntity.ok()
-                .header(HttpHeaders.SET_COOKIE, clearCookie.toString())
+                .header(HttpHeaders.SET_COOKIE, tokenCookieService.clearAuthCookie().toString())
                 .body("Logout realizado");
     }
 
@@ -116,17 +95,9 @@ public class AuthController {
     @GetMapping("/me")
     public ResponseEntity<?> me(Authentication authentication) {
         if (authentication == null || authentication.getName() == null) {
-            ResponseCookie clearCookie = ResponseCookie
-                .from("token", "")
-                .httpOnly(true)
-                .secure(false) // Em produção use true (HTTPS)
-                .sameSite("Lax")
-                .path("/")
-                .maxAge(0)
-                .build();
-
+            // Não autenticado: devolve 401 e garante limpeza de cookie.
             return ResponseEntity.status(401)
-                    .header(HttpHeaders.SET_COOKIE, clearCookie.toString())
+                    .header(HttpHeaders.SET_COOKIE, tokenCookieService.clearAuthCookie().toString())
                     .body("Não autenticado");
         }
         String email = authentication.getName();
@@ -139,19 +110,11 @@ public class AuthController {
                     return ResponseEntity.ok(dto);
                 })
                 .orElseGet(() -> {
-                    ResponseCookie clearCookie = ResponseCookie
-                        .from("token", "")
-                        .httpOnly(true)
-                        .secure(false) // Em produção use true (HTTPS)
-                        .sameSite("Lax")
-                        .path("/")
-                        .maxAge(0)
-                        .build();
-
+                    // Se o token foi aceito mas o usuário não existe mais, limpa cookie por segurança.
                     Map<String, Object> err = new HashMap<>();
                     err.put("error", "Usuário não encontrado");
                     return ResponseEntity.status(404)
-                            .header(HttpHeaders.SET_COOKIE, clearCookie.toString())
+                            .header(HttpHeaders.SET_COOKIE, tokenCookieService.clearAuthCookie().toString())
                             .body(err);
                 });
     }
@@ -160,17 +123,9 @@ public class AuthController {
     @PutMapping("/me")
     public ResponseEntity<?> updateMe(Authentication authentication, @Valid @RequestBody UsuarioSelfUpdateRequest request) {
         if (authentication == null || authentication.getName() == null) {
-            ResponseCookie clearCookie = ResponseCookie
-                .from("token", "")
-                .httpOnly(true)
-                .secure(false)
-                .sameSite("Lax")
-                .path("/")
-                .maxAge(0)
-                .build();
-
+            // PUT /auth/me exige autenticação; por segurança, ainda limpamos cookie se não houver auth.
             return ResponseEntity.status(401)
-                    .header(HttpHeaders.SET_COOKIE, clearCookie.toString())
+                    .header(HttpHeaders.SET_COOKIE, tokenCookieService.clearAuthCookie().toString())
                     .body("Não autenticado");
         }
 
@@ -193,16 +148,8 @@ public class AuthController {
                         dto.put("arrayRoles", updated.getArrayRoles());
                         if (emailRequestedChange) {
                             final String newJwt = jwtUtil.generateToken(updated.getEmail());
-                            ResponseCookie authCookie = ResponseCookie
-                                .from("token", newJwt)
-                                .httpOnly(true)
-                                .secure(false) // Em produção use true (HTTPS)
-                                .sameSite("Lax")
-                                .path("/")
-                                .maxAge(60 * 15)
-                                .build();
                             return ResponseEntity.ok()
-                                .header(HttpHeaders.SET_COOKIE, authCookie.toString())
+                                .header(HttpHeaders.SET_COOKIE, tokenCookieService.createAuthCookie(newJwt).toString())
                                 .body(dto);
                         }
                         return ResponseEntity.ok(dto);

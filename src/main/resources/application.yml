@@ -1,11 +1,8 @@
 spring:
   application:
     name: platform
-  datasource:
-    url: jdbc:postgresql://localhost:5432/coesterdb
-    username: admin
-    password: admin
-    driver-class-name: org.postgresql.Driver
+  profiles:
+    default: dev
   jpa:
     hibernate:
       ddl-auto: update

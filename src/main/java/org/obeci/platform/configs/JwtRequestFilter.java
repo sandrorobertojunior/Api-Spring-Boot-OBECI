@@ -5,7 +5,6 @@ import io.jsonwebtoken.MalformedJwtException;
 import io.jsonwebtoken.security.SignatureException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpHeaders;
-import org.springframework.http.ResponseCookie;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -29,6 +28,9 @@ public class JwtRequestFilter extends OncePerRequestFilter {
     @Autowired
     private JwtUtil jwtUtil;
 
+    @Autowired
+    private TokenCookieService tokenCookieService;
+
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain)
             throws ServletException, IOException {
@@ -39,7 +41,8 @@ public class JwtRequestFilter extends OncePerRequestFilter {
         String jwtToken = null;
         boolean clearCookie = false;
 
-        // Compatibilidade: aceita Bearer token em header
+        // Compatibilidade: aceita Bearer token no header Authorization.
+        // Preferência (principalmente em produção): cookie HttpOnly (configurável em app.auth.cookie.*).
         if (requestTokenHeader != null && requestTokenHeader.startsWith("Bearer ")) {
             jwtToken = requestTokenHeader.substring(7);
         } else {
@@ -47,7 +50,7 @@ public class JwtRequestFilter extends OncePerRequestFilter {
             // O cookie não é acessível via JS, mas o servidor consegue ler aqui.
             if (request.getCookies() != null) {
                 for (jakarta.servlet.http.Cookie c : request.getCookies()) {
-                    if ("token".equals(c.getName())) {
+                    if (tokenCookieService.getCookieName().equals(c.getName())) {
                         jwtToken = c.getValue();
                         break;
                     }
@@ -87,15 +90,8 @@ public class JwtRequestFilter extends OncePerRequestFilter {
         }
 
         if (clearCookie) {
-            ResponseCookie expired = ResponseCookie
-                .from("token", "")
-                .httpOnly(true)
-                .secure(false) // Em produção use true (HTTPS)
-                .sameSite("Lax")
-                .path("/")
-                .maxAge(0)
-                .build();
-            response.addHeader(HttpHeaders.SET_COOKIE, expired.toString());
+            // Token inválido/expirado: limpa o cookie para evitar loop de requests com credencial ruim.
+            response.addHeader(HttpHeaders.SET_COOKIE, tokenCookieService.clearAuthCookie().toString());
         }
         chain.doFilter(request, response);
     }
