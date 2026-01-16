@@ -21,9 +21,32 @@ import jakarta.validation.Valid;
 import org.obeci.platform.dtos.UsuarioCreateRequest;
 import org.obeci.platform.dtos.AuthLoginRequest;
 import org.obeci.platform.dtos.UsuarioSelfUpdateRequest;
+import org.obeci.platform.dtos.LembreteRequest;
+
+import java.util.List;
 
 @RestController
 @RequestMapping("/auth")
+/**
+ * Controller de autenticação e autoatendimento do usuário logado.
+ *
+ * <p>Responsabilidades:
+ * <ul>
+ *   <li>Registrar usuário (restrito por SecurityConfiguration).</li>
+ *   <li>Login: autentica credenciais e emite JWT em cookie HttpOnly.</li>
+ *   <li>Logout: expira o cookie de autenticação.</li>
+ *   <li>/me: ler/atualizar dados do próprio usuário autenticado.</li>
+ *   <li>CRUD de lembretes do próprio usuário (índice no array).</li>
+ * </ul>
+ * </p>
+ *
+ * <p>Efeitos colaterais relevantes:
+ * <ul>
+ *   <li>Login/Logout/erros de token podem enviar {@code Set-Cookie}.</li>
+ *   <li>Registro e atualização persistem dados no banco.</li>
+ * </ul>
+ * </p>
+ */
 public class AuthController {
 
     private final UsuarioService usuarioService;
@@ -46,6 +69,13 @@ public class AuthController {
 
     // Registro de usuário
     @PostMapping("/register")
+    /**
+     * Registra um novo usuário.
+     *
+     * <p>Entrada: {@link UsuarioCreateRequest} (validado via Bean Validation).</p>
+     * <p>Saída: entidade {@link Usuario} criada.</p>
+     * <p>Erros: retorna 400 com mensagem (String) em caso de {@link RuntimeException}.</p>
+     */
     public ResponseEntity<?> register(@Valid @RequestBody UsuarioCreateRequest request) {
         try {
             Usuario novoUsuario = usuarioService.register(request);
@@ -56,6 +86,14 @@ public class AuthController {
     }
 
     @PostMapping("/login")
+    /**
+     * Autentica email/senha e retorna JWT.
+     *
+     * <p>Entrada: {@link AuthLoginRequest}.</p>
+     * <p>Saída: JSON com {@code token} e {@code username} + cookie HttpOnly com o JWT.</p>
+     *
+     * <p>Ponto crítico: em falha de autenticação, limpa cookie para evitar estado inconsistente.</p>
+     */
     public ResponseEntity<?> login(@Valid @RequestBody AuthLoginRequest usuario) {
         try {
             authenticationManager.authenticate(
@@ -84,6 +122,9 @@ public class AuthController {
 
     // Endpoint de logout para limpar o cookie HttpOnly.
     @PostMapping("/logout")
+    /**
+     * Logout: expira o cookie de autenticação no cliente.
+     */
     public ResponseEntity<?> logout() {
         // Logout: expira o cookie no cliente.
         return ResponseEntity.ok()
@@ -93,6 +134,12 @@ public class AuthController {
 
     // Retorna informações do usuário autenticado, incluindo roles.
     @GetMapping("/me")
+    /**
+     * Retorna dados básicos do usuário autenticado.
+     *
+     * <p>Saída: JSON com {@code username}, {@code email}, {@code arrayRoles}.</p>
+     * <p>Se não autenticado, retorna 401 e expira cookie (defensivo).</p>
+     */
     public ResponseEntity<?> me(Authentication authentication) {
         if (authentication == null || authentication.getName() == null) {
             // Não autenticado: devolve 401 e garante limpeza de cookie.
@@ -121,6 +168,14 @@ public class AuthController {
 
     // Atualiza dados do próprio usuário autenticado
     @PutMapping("/me")
+    /**
+     * Atualiza os dados do próprio usuário autenticado.
+     *
+     * <p>Entrada: {@link UsuarioSelfUpdateRequest} (validado).</p>
+     * <p>Saída: JSON com dados atualizados.</p>
+     *
+     * <p>Ponto crítico: se o email for alterado, reemite JWT para refletir o novo subject.</p>
+     */
     public ResponseEntity<?> updateMe(Authentication authentication, @Valid @RequestBody UsuarioSelfUpdateRequest request) {
         if (authentication == null || authentication.getName() == null) {
             // PUT /auth/me exige autenticação; por segurança, ainda limpamos cookie se não houver auth.
@@ -165,6 +220,84 @@ public class AuthController {
                     err.put("error", "Usuário não encontrado");
                     return ResponseEntity.status(404).body(err);
                 });
+    }
+
+    // =====================================================================
+    // Lembretes do usuário autenticado
+    // CRUD simples usando índice do array (0..n-1)
+    // =====================================================================
+
+    @GetMapping("/me/lembretes")
+    /**
+     * Lista os lembretes do usuário autenticado.
+     *
+     * <p>Saída: lista de strings (ordem preservada).</p>
+     */
+    public ResponseEntity<?> listLembretes(Authentication authentication) {
+        if (authentication == null || authentication.getName() == null) {
+            return ResponseEntity.status(401)
+                    .header(HttpHeaders.SET_COOKIE, tokenCookieService.clearAuthCookie().toString())
+                    .body("Não autenticado");
+        }
+        String email = authentication.getName();
+        List<String> lembretes = usuarioService.listLembretes(email);
+        return ResponseEntity.ok(lembretes);
+    }
+
+    @PostMapping("/me/lembretes")
+    /**
+     * Adiciona um lembrete ao final da lista do usuário autenticado.
+     *
+     * <p>Entrada: {@link LembreteRequest#text}.</p>
+     * <p>Saída: lista atualizada.</p>
+     */
+    public ResponseEntity<?> addLembrete(Authentication authentication, @Valid @RequestBody LembreteRequest request) {
+        if (authentication == null || authentication.getName() == null) {
+            return ResponseEntity.status(401)
+                    .header(HttpHeaders.SET_COOKIE, tokenCookieService.clearAuthCookie().toString())
+                    .body("Não autenticado");
+        }
+        String email = authentication.getName();
+        List<String> lembretes = usuarioService.addLembrete(email, request.getText());
+        return ResponseEntity.ok(lembretes);
+    }
+
+    @PutMapping("/me/lembretes/{index}")
+    /**
+     * Atualiza um lembrete pelo índice (0..n-1).
+     *
+     * <p>Entrada: path {@code index} + {@link LembreteRequest#text}.</p>
+     * <p>Saída: lista atualizada.</p>
+     */
+    public ResponseEntity<?> updateLembrete(
+            Authentication authentication,
+            @PathVariable int index,
+            @Valid @RequestBody LembreteRequest request) {
+        if (authentication == null || authentication.getName() == null) {
+            return ResponseEntity.status(401)
+                    .header(HttpHeaders.SET_COOKIE, tokenCookieService.clearAuthCookie().toString())
+                    .body("Não autenticado");
+        }
+        String email = authentication.getName();
+        List<String> lembretes = usuarioService.updateLembrete(email, index, request.getText());
+        return ResponseEntity.ok(lembretes);
+    }
+
+    @DeleteMapping("/me/lembretes/{index}")
+    /**
+     * Remove um lembrete pelo índice (0..n-1).
+     *
+     * <p>Saída: lista atualizada.</p>
+     */
+    public ResponseEntity<?> deleteLembrete(Authentication authentication, @PathVariable int index) {
+        if (authentication == null || authentication.getName() == null) {
+            return ResponseEntity.status(401)
+                    .header(HttpHeaders.SET_COOKIE, tokenCookieService.clearAuthCookie().toString())
+                    .body("Não autenticado");
+        }
+        String email = authentication.getName();
+        List<String> lembretes = usuarioService.deleteLembrete(email, index);
+        return ResponseEntity.ok(lembretes);
     }
 }
 

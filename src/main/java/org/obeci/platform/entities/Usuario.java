@@ -1,10 +1,8 @@
 package org.obeci.platform.entities;
 
-import io.hypersistence.utils.hibernate.type.array.ListArrayType;
 import jakarta.persistence.*;
 import lombok.Data;
 import org.hibernate.annotations.JdbcTypeCode;
-import org.hibernate.annotations.Type;
 import org.hibernate.type.SqlTypes;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.LastModifiedDate;
@@ -18,6 +16,25 @@ import java.util.List;
 @Entity
 @Table(name = "usuarios")
 @EntityListeners(AuditingEntityListener.class)
+/**
+ * Entidade JPA que representa um usuário do sistema.
+ *
+ * <p>Mapeamento:
+ * <ul>
+ *   <li>Tabela: {@code usuarios}</li>
+ *   <li>Campos principais: username, email (único), cpf (único), password (hash).</li>
+ *   <li>{@code array_roles}: roles do usuário como {@code text[]} (PostgreSQL).</li>
+ *   <li>{@code lembretes}: lista de lembretes do usuário como {@code text[]} (PostgreSQL).</li>
+ * </ul>
+ * </p>
+ *
+ * <p>Pontos críticos:
+ * <ul>
+ *   <li>{@code password} deve ser persistida como hash (ver {@link org.obeci.platform.services.UsuarioService}).</li>
+ *   <li>{@code lembretes} pode conter múltiplas linhas (\n) por item.</li>
+ * </ul>
+ * </p>
+ */
 public class Usuario {
 
     @Id
@@ -47,6 +64,12 @@ public class Usuario {
     @JdbcTypeCode(SqlTypes.ARRAY)
     @Column(name = "array_roles", columnDefinition = "text[]")
     private List<String> arrayRoles = new ArrayList<>();
+
+    // Lembretes do usuário (persistidos no PostgreSQL como text[])
+    // Cada item pode conter múltiplas linhas (\n).
+    @JdbcTypeCode(SqlTypes.ARRAY)
+    @Column(name = "lembretes", columnDefinition = "text[]")
+    private List<String> lembretes = new ArrayList<>();
 
     public Usuario() {
 

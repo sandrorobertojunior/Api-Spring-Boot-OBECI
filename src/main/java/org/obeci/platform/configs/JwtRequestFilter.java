@@ -20,6 +20,21 @@ import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
 
 @Component
+/**
+ * Filtro de autenticação JWT.
+ *
+ * <p>Responsável por extrair o token JWT da request (preferencialmente via cookie HttpOnly,
+ * com fallback para {@code Authorization: Bearer ...}), validar assinatura/expiração e
+ * popular o {@link org.springframework.security.core.context.SecurityContext} com um
+ * {@link UsernamePasswordAuthenticationToken} quando o token é válido.</p>
+ *
+ * <p>Efeitos colaterais importantes:
+ * <ul>
+ *   <li>Em caso de token inválido/expirado, adiciona header {@code Set-Cookie} para limpar o cookie.</li>
+ *   <li>Define a autenticação no SecurityContext para a thread da request.</li>
+ * </ul>
+ * </p>
+ */
 public class JwtRequestFilter extends OncePerRequestFilter {
 
     @Autowired
@@ -32,6 +47,18 @@ public class JwtRequestFilter extends OncePerRequestFilter {
     private TokenCookieService tokenCookieService;
 
     @Override
+    /**
+     * Executa a autenticação por request (OncePerRequestFilter).
+     *
+     * <p>Fluxo:
+     * <ol>
+     *   <li>Extrai JWT do header Bearer ou cookie.</li>
+     *   <li>Extrai username (subject) via {@link JwtUtil}.</li>
+     *   <li>Carrega {@link UserDetails} e valida o token.</li>
+     *   <li>Se inválido/expirado, sinaliza para limpar cookie.</li>
+     * </ol>
+     * </p>
+     */
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain)
             throws ServletException, IOException {
 
@@ -58,6 +85,7 @@ public class JwtRequestFilter extends OncePerRequestFilter {
             }
         }
 
+        // Se houver token, tenta extrair o subject/username.
         if (jwtToken != null) {
             try {
                 username = jwtUtil.extractUsername(jwtToken);
@@ -73,6 +101,7 @@ public class JwtRequestFilter extends OncePerRequestFilter {
             }
         }
 
+        // Somente autentica se ainda não houver autenticação na thread.
         if (username != null && SecurityContextHolder.getContext().getAuthentication() == null) {
 
             UserDetails userDetails = this.userDetailsService.loadUserByUsername(username);

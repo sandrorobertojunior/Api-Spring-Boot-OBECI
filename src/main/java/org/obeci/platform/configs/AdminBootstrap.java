@@ -14,6 +14,22 @@ import java.util.Arrays;
 
 @Component
 @Profile("!test")
+/**
+ * Inicializador (bootstrap) de um usuário ADMIN padrão.
+ *
+ * <p>Executa na inicialização da aplicação (exceto profile test) para garantir que exista
+ * um usuário administrador default, controlado por propriedades {@code app.admin.*}.</p>
+ *
+ * <p>Efeitos colaterais:
+ * <ul>
+ *   <li>Pode inserir um registro em {@code usuarios} (persistência).</li>
+ *   <li>Pode gerar CPF alternativo para evitar colisões.</li>
+ * </ul>
+ * </p>
+ *
+ * <p>Observação: este mecanismo é conveniente para DEV, mas em produção recomenda-se
+ * gerenciamento via processo controlado (secret manager + provisionamento).</p>
+ */
 public class AdminBootstrap implements CommandLineRunner {
 
     private static final Logger log = LoggerFactory.getLogger(AdminBootstrap.class);
@@ -42,6 +58,11 @@ public class AdminBootstrap implements CommandLineRunner {
     }
 
     @Override
+    /**
+     * Garante a existência de um admin default conforme propriedades.
+     *
+     * <p>Se {@code app.admin.enabled=false}, não faz nada. Se o email já existir, não recria.</p>
+     */
     public void run(String... args) {
         if (!enabled) {
             log.debug("Admin bootstrap disabled by property app.admin.enabled=false");

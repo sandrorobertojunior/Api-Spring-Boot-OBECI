@@ -3,9 +3,14 @@ package org.obeci.platform.dtos;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
-import org.hibernate.validator.constraints.br.CPF;
 import java.util.List;
 
+/**
+ * DTO de criação de usuário.
+ *
+ * <p>Usado no cadastro via {@code POST /auth/register} e também no endpoint admin {@code POST /api/usuarios}.</p>
+ * <p>Contém validações mínimas e alguns campos extras vindos do front que não são persistidos atualmente.</p>
+ */
 public class UsuarioCreateRequest {
     @NotBlank(message = "Nome de usuário é obrigatório")
     private String username; // mapeia dos forms "nome"

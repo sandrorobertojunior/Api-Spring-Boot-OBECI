@@ -1,3 +1,13 @@
+# application-test.yml
+#
+# Propósito:
+# - Configuração de testes automatizados.
+# - Usa H2 em memória em modo compatível (MODE=PostgreSQL) para reduzir divergências.
+#
+# Pontos críticos:
+# - ddl-auto=none evita alterações de schema durante testes.
+# - app.admin.enabled=false desativa AdminBootstrap para não poluir dados de teste.
+
 spring:
   config:
     activate:

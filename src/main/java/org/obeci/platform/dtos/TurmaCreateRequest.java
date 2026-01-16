@@ -3,6 +3,11 @@ package org.obeci.platform.dtos;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 
+/**
+ * DTO de criação de turma.
+ *
+ * <p>Usado em {@code POST /api/turmas}.</p>
+ */
 public class TurmaCreateRequest {
     @NotNull(message = "escolaId é obrigatório")
     private Long escolaId;

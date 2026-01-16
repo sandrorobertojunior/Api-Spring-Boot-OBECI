@@ -1,3 +1,12 @@
+# application-prod.yml
+#
+# Propósito:
+# - Configuração de produção (datasource via variáveis de ambiente e políticas mais seguras de cookie/JWT).
+#
+# Pontos críticos:
+# - app.jwt.require-secret=true exige que APP_JWT_SECRET esteja definido.
+# - Cookies cross-site geralmente exigem secure=true e same-site=None.
+
 spring:
   config:
     activate:

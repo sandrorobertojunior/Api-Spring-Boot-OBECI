@@ -6,6 +6,9 @@ import org.springframework.stereotype.Repository;
 import java.util.List;
 
 @Repository
+/**
+ * Repositório JPA para {@link Escola}.
+ */
 public interface EscolaRepository extends JpaRepository<Escola, Long> {
     List<Escola> findByIsActive(Boolean isActive);
     List<Escola> findByNomeContainingIgnoreCase(String nome);

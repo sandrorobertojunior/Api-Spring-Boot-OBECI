@@ -1,3 +1,12 @@
+# application.yml
+#
+# Propósito:
+# - Configuração base do Spring Boot (perfil padrão, JPA/Hibernate e servidor).
+# - Perfis específicos complementam/override em application-dev.yml, application-prod.yml, application-test.yml.
+#
+# Pontos críticos:
+# - spring.jpa.hibernate.ddl-auto=update altera o schema automaticamente; útil em DEV, arriscado em PROD.
+#
 spring:
   application:
     name: platform

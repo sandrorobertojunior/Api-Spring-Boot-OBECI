@@ -16,6 +16,12 @@ import java.time.LocalDateTime;
         @UniqueConstraint(columnNames = {"turma_id"})
 })
 @EntityListeners(AuditingEntityListener.class)
+/**
+ * Entidade JPA que representa um "instrumento" (conjunto de slides) associado a uma turma.
+ *
+ * <p>O conteúdo dos slides é persistido como string JSON em {@code slidesJson}. O formato
+ * do JSON é definido pelo front-end (editor) e não é validado estruturalmente aqui.</p>
+ */
 public class Instrumento {
 
     @Id

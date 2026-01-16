@@ -11,13 +11,18 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.security.core.Authentication;
 import java.util.Collections;
 import org.obeci.platform.services.UsuarioService;
-import org.obeci.platform.entities.Usuario;
 
 import java.util.List;
 import java.util.Optional;
 
 @RestController
 @RequestMapping("/api/turmas")
+/**
+ * Controller REST para gestão de turmas.
+ *
+ * <p>Expõe CRUD e consultas; inclui endpoint especial {@code /mine} que aplica
+ * regras de visibilidade com base nas roles do usuário autenticado.</p>
+ */
 public class TurmaController {
 
     @Autowired
@@ -27,6 +32,9 @@ public class TurmaController {
     private UsuarioService usuarioService;
 
     @GetMapping
+    /**
+     * Lista todas as turmas.
+     */
     public ResponseEntity<List<Turma>> getAllTurmas() {
         List<Turma> turmas = turmaService.getAllTurmas();
         return ResponseEntity.ok(turmas);
@@ -34,6 +42,17 @@ public class TurmaController {
 
     // Retorna turmas visíveis ao usuário atual: ADMIN vê todas; PROFESSOR vê as suas.
     @GetMapping("/mine")
+    /**
+     * Retorna turmas visíveis ao usuário autenticado.
+     *
+     * <p>Regras:
+     * <ul>
+     *   <li>ADMIN: retorna todas as turmas.</li>
+     *   <li>PROFESSOR: retorna apenas turmas onde {@code professorId} = id do usuário.</li>
+     *   <li>Outras roles: retorna lista vazia.</li>
+     * </ul>
+     * </p>
+     */
     public ResponseEntity<List<Turma>> getMyTurmas(Authentication authentication) {
         if (authentication == null || authentication.getName() == null) {
             return ResponseEntity.status(401).body(Collections.<Turma>emptyList());
@@ -56,12 +75,20 @@ public class TurmaController {
     }
 
     @GetMapping("/{id}")
+    /**
+     * Obtém turma por id.
+     *
+     * <p>Saída: {@code Optional<Turma>} (o controller não transforma ausência em 404).</p>
+     */
     public ResponseEntity<Optional<Turma>> getTurmaById(@PathVariable Long id) {
         Optional<Turma> turma = turmaService.getTurmaById(id);
         return ResponseEntity.ok(turma);
     }
 
     @PostMapping
+    /**
+     * Cria turma a partir de {@link TurmaCreateRequest}.</p>
+     */
     public ResponseEntity<Turma> createTurma(@Valid @RequestBody TurmaCreateRequest request) {
         Turma turma = new Turma();
         turma.setEscolaId(request.getEscolaId());
@@ -74,6 +101,9 @@ public class TurmaController {
     }
 
     @PutMapping("/{id}")
+    /**
+     * Atualiza uma turma.</p>
+     */
     public ResponseEntity<Turma> updateTurma(@PathVariable Long id, @Valid @RequestBody TurmaUpdateRequest request) {
         Turma turmaDetails = new Turma();
         turmaDetails.setEscolaId(request.getEscolaId());
@@ -89,6 +119,9 @@ public class TurmaController {
     }
 
     @DeleteMapping("/{id}")
+    /**
+     * Remove turma por id.</p>
+     */
     public ResponseEntity<Boolean> deleteTurma(@PathVariable Long id) {
         boolean deleted = turmaService.deleteTurma(id);
         if (deleted) {
@@ -98,12 +131,18 @@ public class TurmaController {
     }
 
     @GetMapping("/escola/{escolaId}")
+    /**
+     * Lista turmas por escola.</p>
+     */
     public ResponseEntity<List<Turma>> getTurmasByEscolaId(@PathVariable Long escolaId) {
         List<Turma> turmas = turmaService.getTurmasByEscolaId(escolaId);
         return ResponseEntity.ok(turmas);
     }
 
     @GetMapping("/professor/{professorId}")
+    /**
+     * Lista turmas por professor.</p>
+     */
     public ResponseEntity<List<Turma>> getTurmasByProfessorId(@PathVariable Long professorId) {
         List<Turma> turmas = turmaService.getTurmasByProfessorId(professorId);
         return ResponseEntity.ok(turmas);

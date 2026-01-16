@@ -15,6 +15,11 @@ import org.obeci.platform.dtos.ProfessorResponse;
 
 @RestController
 @RequestMapping("/api/usuarios")
+/**
+ * Controller REST para administração de usuários.
+ *
+ * <p>Observação: as permissões (ADMIN) são definidas em {@link org.obeci.platform.configs.SecurityConfiguration}.</p>
+ */
 public class UsuarioController {
 
     @Autowired
@@ -22,18 +27,28 @@ public class UsuarioController {
 
     // Lista todos os usuários (ADMIN)
     @GetMapping
+    /**
+     * Lista todos os usuários.</p>
+     */
     public ResponseEntity<List<Usuario>> findAll() {
         return ResponseEntity.ok(usuarioService.findAll());
     }
 
     // Obtém um usuário por ID (ADMIN)
     @GetMapping("/{id}")
+    /**
+     * Obtém um usuário por id.</p>
+     * <p>Saída: {@code Optional<Usuario>} (o controller não transforma ausência em 404).</p>
+     */
     public ResponseEntity<Optional<Usuario>> findById(@PathVariable Long id) {
         return ResponseEntity.ok(usuarioService.findById(id));
     }
 
     // Cria usuário (ADMIN) — utiliza mesma regra do register, mas sob /api/usuarios
     @PostMapping
+    /**
+     * Cria um usuário (admin), reutilizando regras de {@link UsuarioService#register(Usuario)}.</p>
+     */
     public ResponseEntity<Usuario> create(@Valid @RequestBody UsuarioCreateRequest request) {
         Usuario usuario = new Usuario();
         usuario.setUsername(request.getUsername());
@@ -47,6 +62,9 @@ public class UsuarioController {
 
     // Atualiza usuário (ADMIN)
     @PutMapping("/{id}")
+    /**
+     * Atualiza um usuário por id.</p>
+     */
     public ResponseEntity<Optional<Usuario>> update(@PathVariable Long id, @Valid @RequestBody UsuarioUpdateRequest request) {
         Usuario usuario = new Usuario();
         usuario.setUsername(request.getUsername());
@@ -63,6 +81,9 @@ public class UsuarioController {
 
     // Exclui usuário (ADMIN)
     @DeleteMapping("/{id}")
+    /**
+     * Exclui um usuário por id.</p>
+     */
     public ResponseEntity<Boolean> delete(@PathVariable Long id) {
         boolean deleted = usuarioService.delete(id);
         if (deleted) {
@@ -73,6 +94,9 @@ public class UsuarioController {
 
     // Lista usuários por role com busca opcional (ADMIN)
     @GetMapping("/role/{role}")
+    /**
+     * Lista usuários filtrando por role, com busca opcional por termo {@code q}.</p>
+     */
     public ResponseEntity<List<Usuario>> findByRole(
             @PathVariable String role,
             @RequestParam(name = "q", required = false) String q) {
@@ -81,6 +105,9 @@ public class UsuarioController {
 
     // Lista todos os professores (ADMIN) em formato resumido (sem senha)
     @GetMapping("/professores")
+    /**
+     * Lista professores em formato resumido ({@link ProfessorResponse}).</p>
+     */
     public ResponseEntity<List<ProfessorResponse>> listProfessores() {
         List<Usuario> professores = usuarioService.findByRole("PROFESSOR", null);
         List<ProfessorResponse> result = professores.stream()

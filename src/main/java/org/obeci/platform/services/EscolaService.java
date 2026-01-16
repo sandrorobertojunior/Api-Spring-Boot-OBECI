@@ -8,6 +8,11 @@ import java.util.List;
 import java.util.Optional;
 
 @Service
+/**
+ * Camada de serviço para escolas.
+ *
+ * <p>Encapsula operações de persistência e consultas básicas para {@link Escola}.</p>
+ */
 public class EscolaService {
 
     @Autowired

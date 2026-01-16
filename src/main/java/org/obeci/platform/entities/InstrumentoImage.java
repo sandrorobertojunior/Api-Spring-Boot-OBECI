@@ -11,6 +11,11 @@ import java.time.LocalDateTime;
 @Entity
 @Table(name = "instrumento_images")
 @EntityListeners(AuditingEntityListener.class)
+/**
+ * Entidade JPA para armazenar imagens enviadas pelo editor de instrumento.
+ *
+ * <p>Armazena bytes em {@code data} (LOB) e metadados como {@code contentType} e {@code originalName}.</p>
+ */
 public class InstrumentoImage {
 
     @Id

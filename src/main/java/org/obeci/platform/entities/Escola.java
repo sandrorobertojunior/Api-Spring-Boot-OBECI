@@ -8,6 +8,11 @@ import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 @Entity
 @Table(name = "escolas")
 @EntityListeners(AuditingEntityListener.class)
+/**
+ * Entidade JPA que representa uma escola.
+ *
+ * <p>Campos: nome e flag {@code isActive} (ativação/desativação lógica).</p>
+ */
 public class Escola {
 
     @Id

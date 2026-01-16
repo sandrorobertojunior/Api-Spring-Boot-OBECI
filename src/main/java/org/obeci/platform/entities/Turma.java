@@ -2,21 +2,18 @@ package org.obeci.platform.entities;
 
 import jakarta.persistence.*;
 import lombok.Data;
-import org.hibernate.annotations.JdbcTypeCode;
-import org.hibernate.annotations.Type;
-import org.hibernate.type.SqlTypes;
-import org.springframework.data.annotation.CreatedDate;
-import org.springframework.data.annotation.LastModifiedDate;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
-
-import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.List;
-
 @Data
 @Entity
 @Table(name = "turmas")
 @EntityListeners(AuditingEntityListener.class)
+/**
+ * Entidade JPA que representa uma turma.
+ *
+ * <p>Mapeamento atual usa IDs primitivos ({@code escolaId}, {@code professorId}) em vez de
+ * relacionamentos JPA (ManyToOne). Isso simplifica o modelo, mas delega joins/consistência
+ * para a camada de serviço ou consultas específicas.</p>
+ */
 public class Turma {
 
     @Id

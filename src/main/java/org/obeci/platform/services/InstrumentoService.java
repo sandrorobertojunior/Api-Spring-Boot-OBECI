@@ -17,6 +17,24 @@ import java.io.IOException;
 import java.util.Optional;
 
 @Service
+/**
+ * Camada de serviço para Instrumento (slides) e imagens associadas.
+ *
+ * <p>Responsabilidades:
+ * <ul>
+ *   <li>Buscar/criar instrumento por turma.</li>
+ *   <li>Persistir JSON de slides (string) a partir de {@link JsonNode}.</li>
+ *   <li>Armazenar e recuperar imagens (bytes) via {@link InstrumentoImage}.</li>
+ * </ul>
+ * </p>
+ *
+ * <p>Pontos críticos:
+ * <ul>
+ *   <li>{@link #defaultSlidesJson()} define o formato inicial esperado pelo editor do front-end.</li>
+ *   <li>As operações de save executam escrita no banco e podem lançar {@link IOException} ao serializar JSON.</li>
+ * </ul>
+ * </p>
+ */
 public class InstrumentoService {
 
     @Autowired
@@ -29,11 +47,19 @@ public class InstrumentoService {
     private ObjectMapper objectMapper;
 
     @Transactional(readOnly = true)
+    /**
+     * Busca instrumento por id da turma.</p>
+     */
     public Optional<Instrumento> getByTurmaId(Long turmaId) {
         return instrumentoRepository.findByTurmaId(turmaId);
     }
 
     @Transactional
+    /**
+     * Cria um instrumento vazio para a turma, se ainda não existir.
+     *
+     * <p>Efeito colateral: pode inserir novo registro com JSON default.</p>
+     */
     public Instrumento createEmptyForTurma(Long turmaId) {
         if (instrumentoRepository.existsByTurmaId(turmaId)) {
             return instrumentoRepository.findByTurmaId(turmaId).get();
@@ -45,15 +71,24 @@ public class InstrumentoService {
     }
 
     @Transactional
+    /**
+     * Persiste os slides (JSON) do instrumento da turma.
+     *
+     * <p>Entrada: {@link JsonNode} (estrutura livre vinda do front-end).</p>
+     * <p>Saída: entidade {@link Instrumento} persistida.</p>
+     */
     public Instrumento saveSlides(Long turmaId, JsonNode slidesNode) throws IOException {
+        // Regra: não criar instrumento implicitamente a partir de um turmaId arbitrário.
+        // O instrumento deve ser criado no fluxo de criação de turma.
         Instrumento instrumento = instrumentoRepository.findByTurmaId(turmaId)
-                .orElseGet(() -> createEmptyForTurma(turmaId));
+            .orElseThrow(() -> new IllegalStateException("Instrumento não encontrado para a turmaId=" + turmaId));
         String json = objectMapper.writeValueAsString(slidesNode);
         instrumento.setSlidesJson(json);
         return instrumentoRepository.save(instrumento);
     }
 
     public InstrumentoImage saveImage(MultipartFile file) throws IOException {
+        // Efeito colateral: persiste bytes da imagem no banco.
         InstrumentoImage img = new InstrumentoImage();
         img.setContentType(file.getContentType() == null ? "application/octet-stream" : file.getContentType());
         img.setOriginalName(file.getOriginalFilename());
@@ -66,7 +101,8 @@ public class InstrumentoService {
     }
 
     private String defaultSlidesJson() {
-        // Cria dois slides iniciais vazios compatíveis com o editor
+        // Cria dois slides iniciais vazios compatíveis com o editor.
+        // Observação: os campos e defaults aqui precisam ficar alinhados ao contrato implícito do front-end.
         ArrayNode arr = objectMapper.createArrayNode();
 
         ObjectNode slide1 = objectMapper.createObjectNode();

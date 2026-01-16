@@ -3,6 +3,11 @@ package org.obeci.platform.dtos;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.Size;
 
+/**
+ * DTO de atualização do próprio usuário (self-service).
+ *
+ * <p>Usado em {@code PUT /auth/me}. Campos são opcionais e aplicados condicionalmente.</p>
+ */
 public class UsuarioSelfUpdateRequest {
     private String username;
 

@@ -1,5 +1,10 @@
 package org.obeci.platform.dtos;
 
+/**
+ * DTO de resposta resumida para professores.
+ *
+ * <p>Usado em {@code GET /api/usuarios/professores} para evitar exposição de campos sensíveis (ex.: senha).</p>
+ */
 public class ProfessorResponse {
     private Long id;
     private String username;

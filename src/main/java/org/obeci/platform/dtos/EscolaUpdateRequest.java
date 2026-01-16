@@ -3,6 +3,11 @@ package org.obeci.platform.dtos;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 
+/**
+ * DTO de atualização de escola.
+ *
+ * <p>Usado em {@code PUT /api/escolas/{id}}.</p>
+ */
 public class EscolaUpdateRequest {
     @NotBlank(message = "Nome é obrigatório")
     private String nome;

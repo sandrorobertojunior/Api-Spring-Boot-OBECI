@@ -6,6 +6,18 @@ import org.springframework.stereotype.Component;
 import java.util.Arrays;
 import java.util.List;
 
+/**
+ * Propriedades de CORS da aplicação.
+ *
+ * <p>Este bean faz o bind das configurações sob o prefixo {@code app.cors} (application*.yml)
+ * para listas de origens, métodos e headers permitidos.</p>
+ *
+ * <p>Dependências/relações:
+ * <ul>
+ *   <li>Consumido por {@link SecurityConfiguration#corsConfigurationSource()}.</li>
+ * </ul>
+ * </p>
+ */
 @Component
 @ConfigurationProperties(prefix = "app.cors")
 public class AppCorsProperties {

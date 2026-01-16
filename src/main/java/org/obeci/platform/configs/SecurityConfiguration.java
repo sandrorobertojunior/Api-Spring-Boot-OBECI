@@ -19,6 +19,18 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 @Configuration
 @EnableWebSecurity
+/**
+ * Configuração central de segurança (Spring Security).
+ *
+ * <p>Define:
+ * <ul>
+ *   <li>Política stateless (sem sessão de servidor).</li>
+ *   <li>CORS a partir de {@link AppCorsProperties}.</li>
+ *   <li>Autorização por rota (roles + autenticação).</li>
+ *   <li>Filtro de autenticação JWT ({@link JwtRequestFilter}) antes do filtro padrão de username/password.</li>
+ * </ul>
+ * </p>
+ */
 public class SecurityConfiguration {
 
     @Autowired
@@ -29,11 +41,27 @@ public class SecurityConfiguration {
 
     // Bean para criptografia de senha
     @Bean
+    /**
+     * Encoder de senha para persistir/verificar senhas de usuários.
+     *
+     * <p>Uso: criação e validação de senha (BCrypt).</p>
+     */
     public PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder(10);
     }
 
     @Bean
+    /**
+     * Cadeia de filtros de segurança.
+     *
+     * <p>Pontos críticos:
+     * <ul>
+     *   <li>{@code /auth/me} GET é aberto, mas retorna 401 se não autenticado (ver controller).</li>
+     *   <li>{@code /api/usuarios/**} é restrito a ADMIN.</li>
+     *   <li>Demais rotas (default) exigem autenticação.</li>
+     * </ul>
+     * </p>
+     */
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
             .cors(cors -> cors.configurationSource(corsConfigurationSource()))
@@ -47,6 +75,8 @@ public class SecurityConfiguration {
                 // /auth/me: GET pode ser aberto (retorna 401 se não houver token), PUT exige autenticação
                 .requestMatchers(HttpMethod.GET, "/auth/me").permitAll()
                 .requestMatchers(HttpMethod.PUT, "/auth/me").authenticated()
+                // Lembretes do próprio usuário
+                .requestMatchers("/auth/me/lembretes/**").authenticated()
                 // CRUD de usuários somente por ADMIN
                 .requestMatchers("/api/usuarios/**").hasRole("ADMIN")
                 // Escola: leitura autenticada, escrita somente ADMIN
@@ -71,11 +101,19 @@ public class SecurityConfiguration {
     }
 
     @Bean
+    /**
+     * Exposição do {@link AuthenticationManager} padrão, para uso em fluxos de autenticação.
+     */
     public AuthenticationManager authenticationManager(AuthenticationConfiguration config) throws Exception {
         return config.getAuthenticationManager();
     }
 
     @Bean
+    /**
+     * Fonte de configuração CORS aplicada para todas as rotas.
+     *
+     * <p>Usa {@link AppCorsProperties} para preencher allowed origins/methods/headers e allow-credentials.</p>
+     */
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
         configuration.setAllowedOrigins(corsProperties.getAllowedOrigins());

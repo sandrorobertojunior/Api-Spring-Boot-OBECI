@@ -4,6 +4,20 @@ import org.springframework.http.ResponseCookie;
 import org.springframework.stereotype.Component;
 
 @Component
+/**
+ * Serviço utilitário para criar e limpar o cookie que carrega o JWT.
+ *
+ * <p>Centraliza a construção de {@link ResponseCookie} para garantir consistência entre
+ * ambientes e evitar duplicação de regras de cookie em controllers/filtros.</p>
+ *
+ * <p>Dependências/relações:
+ * <ul>
+ *   <li>Lê {@link AuthCookieProperties}.</li>
+ *   <li>Usado por {@link JwtRequestFilter} para limpar cookie quando token é inválido.</li>
+ *   <li>Tipicamente usado por controllers (ex.: login/logout) para setar/limpar o cookie.</li>
+ * </ul>
+ * </p>
+ */
 public class TokenCookieService {
 
     private final AuthCookieProperties props;

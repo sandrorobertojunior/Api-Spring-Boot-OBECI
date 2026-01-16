@@ -1,3 +1,13 @@
+# application-dev.yml
+#
+# Propósito:
+# - Configuração de desenvolvimento local (PostgreSQL local) e defaults de segurança (CORS/cookie/JWT).
+#
+# Dependências:
+# - AppCorsProperties (app.cors.*)
+# - AuthCookieProperties / TokenCookieService (app.auth.cookie.*)
+# - JwtProperties / JwtUtil (app.jwt.*)
+
 spring:
   config:
     activate:

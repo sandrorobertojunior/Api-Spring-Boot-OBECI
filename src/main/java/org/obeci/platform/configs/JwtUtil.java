@@ -17,6 +17,25 @@ import java.util.Map;
 import java.util.function.Function;
 
 @Component
+/**
+ * Utilitário responsável por criar e validar tokens JWT (HS256).
+ *
+ * <p>Principais responsabilidades:
+ * <ul>
+ *   <li>Construir a chave de assinatura a partir de {@link JwtProperties#getSecret()}.</li>
+ *   <li>Gerar tokens com subject = username/email e expiração configurável.</li>
+ *   <li>Extrair claims (subject/expiração) e validar token.</li>
+ * </ul>
+ * </p>
+ *
+ * <p>Pontos críticos:
+ * <ul>
+ *   <li>Se {@code app.jwt.secret} estiver vazio e {@code requireSecret=false}, uma chave aleatória é usada;
+ *   isso invalida tokens após restart.</li>
+ *   <li>Para HS256, o secret precisa ter no mínimo 32 bytes.</li>
+ * </ul>
+ * </p>
+ */
 public class JwtUtil {
 
     private static final Logger log = LoggerFactory.getLogger(JwtUtil.class);
@@ -30,6 +49,7 @@ public class JwtUtil {
     }
 
     private Key buildKey(String secret) {
+        // Constrói a chave de assinatura. Em produção, deve ser estável e configurada externamente.
         if (secret == null || secret.isBlank()) {
             if (jwtProperties.isRequireSecret()) {
                 throw new IllegalStateException("app.jwt.secret é obrigatório (require-secret=true)");
@@ -46,6 +66,7 @@ public class JwtUtil {
     }
 
     public String extractUsername(String token) {
+        // Subject é usado como "username" (no projeto, tipicamente email).
         return extractClaim(token, Claims::getSubject);
     }
 
@@ -67,11 +88,13 @@ public class JwtUtil {
     }
 
     public String generateToken(String username) {
+        // Atualmente gera token com apenas subject + timestamps; claims custom podem ser adicionadas no futuro.
         Map<String, Object> claims = new HashMap<>();
         return createToken(claims, username);
     }
 
     private String createToken(Map<String, Object> claims, String subject) {
+        // Calcula expiração a partir de app.jwt.expiration-seconds.
         long expiresInMs = jwtProperties.getExpirationSeconds() * 1000L;
         return Jwts.builder().setClaims(claims).setSubject(subject).setIssuedAt(new Date(System.currentTimeMillis()))
             .setExpiration(new Date(System.currentTimeMillis() + expiresInMs))
@@ -79,6 +102,7 @@ public class JwtUtil {
     }
 
     public Boolean validateToken(String token, String username) {
+        // Validação mínima: subject corresponde ao username e token não expirou.
         final String extractedUsername = extractUsername(token);
         return (extractedUsername.equals(username) && !isTokenExpired(token));
     }

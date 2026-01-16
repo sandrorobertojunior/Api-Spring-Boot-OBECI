@@ -3,6 +3,12 @@ package org.obeci.platform.dtos;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 
+/**
+ * DTO de criação de escola.
+ *
+ * <p>Usado em {@code POST /api/escolas}.</p>
+ * <p>Observação: o campo {@code cidade} é validado, mas não é persistido na entidade atual.</p>
+ */
 public class EscolaCreateRequest {
     @NotBlank(message = "Nome é obrigatório")
     private String nome;

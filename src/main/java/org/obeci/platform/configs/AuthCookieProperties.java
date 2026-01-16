@@ -3,6 +3,20 @@ package org.obeci.platform.configs;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.stereotype.Component;
 
+/**
+ * Propriedades do cookie de autenticação.
+ *
+ * <p>Mapeia configurações sob {@code app.auth.cookie} para controlar nome, flags de segurança
+ * (HttpOnly/Secure/SameSite), escopo (path/domain) e expiração (Max-Age) do cookie que
+ * armazena o JWT.</p>
+ *
+ * <p>Dependências/relações:
+ * <ul>
+ *   <li>Consumido por {@link TokenCookieService} para criar/limpar cookies.</li>
+ *   <li>Lido indiretamente pelo filtro {@link JwtRequestFilter} ao buscar o cookie pelo nome.</li>
+ * </ul>
+ * </p>
+ */
 @Component
 @ConfigurationProperties(prefix = "app.auth.cookie")
 public class AuthCookieProperties {

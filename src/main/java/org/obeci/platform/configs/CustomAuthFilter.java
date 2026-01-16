@@ -12,6 +12,23 @@ import org.springframework.web.filter.OncePerRequestFilter;
 import java.io.IOException;
 import java.util.Collections;
 
+/**
+ * Filtro de autenticação alternativo baseado em {@code Authorization: Basic ...}.
+ *
+ * <p>Este filtro tenta validar credenciais Basic (email:senha) usando o fluxo de login do
+ * {@link UsuarioService}. Caso válido, popula o {@link org.springframework.security.core.context.SecurityContext}
+ * com uma autenticação simples (ROLE_USER).</p>
+ *
+ * <p>Pontos críticos:
+ * <ul>
+ *   <li>Este filtro <strong>não</strong> possui anotações (@Component/@Bean) neste projeto. Portanto,
+ *   só terá efeito se for explicitamente registrado na cadeia de filtros do Spring Security.</li>
+ *   <li>Usa {@code System.out.println} para logging (não estruturado).</li>
+ * </ul>
+ * </p>
+ *
+ * <p>Efeitos colaterais: pode autenticar a request ao setar o SecurityContext.</p>
+ */
 public class CustomAuthFilter extends OncePerRequestFilter {
 
     private final UsuarioService usuarioService;
@@ -30,6 +47,7 @@ public class CustomAuthFilter extends OncePerRequestFilter {
 
         String authHeader = request.getHeader("Authorization");
 
+        // Se existir header Basic, tenta validar as credenciais e autenticar a request.
         if (authHeader != null && authHeader.startsWith("Basic ")) {
             try {
                 // Extrai o token (remove "Basic ")
@@ -45,11 +63,12 @@ public class CustomAuthFilter extends OncePerRequestFilter {
                     String email = parts[0];
                     String password = parts[1];
 
-                    // Usa o mesmo método do seu login para validar
+                    // Usa o mesmo método do login para validar (evita duplicar regras de senha/hash).
                     boolean isValid = usuarioService.login(email, password).isPresent();
 
                     if (isValid) {
-                        // Cria a autenticação no Spring Security
+                        // Cria a autenticação no Spring Security.
+                        // Observação: aqui não é carregado UserDetails completo; apenas o "principal" email.
                         UsernamePasswordAuthenticationToken authentication =
                                 new UsernamePasswordAuthenticationToken(
                                         email,
@@ -59,7 +78,7 @@ public class CustomAuthFilter extends OncePerRequestFilter {
 
                         SecurityContextHolder.getContext().setAuthentication(authentication);
                     } else {
-                        // Credenciais inválidas - não define autenticação
+                        // Credenciais inválidas - não define autenticação.
                         System.out.println("Credenciais inválidas para: " + email);
                     }
                 }
