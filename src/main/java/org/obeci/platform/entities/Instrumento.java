@@ -28,6 +28,19 @@ public class Instrumento {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    /**
+     * Versão para controle de concorrência (optimistic locking).
+     *
+     * <p>Quando dois professores editam simultaneamente, esse campo permite detectar
+     * atualizações "stale" (um cliente tentando salvar em cima de uma versão antiga)
+     * e retornar conflito ao invés de sobrescrever silenciosamente.</p>
+     */
+    @Version
+    // IMPORTANTE: não marcar como NOT NULL no schema via Hibernate.
+    // Em bancos já existentes, adicionar uma coluna NOT NULL falha porque linhas antigas
+    // começam com NULL. Após o backfill, podemos impor NOT NULL via migração controlada.
+    private Long version;
+
     @Column(name = "turma_id", nullable = false)
     private Long turmaId;
 

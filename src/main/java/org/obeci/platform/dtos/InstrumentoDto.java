@@ -14,4 +14,9 @@ public class InstrumentoDto {
     private Long id;
     private Long turmaId;
     private String slidesJson;
+    /**
+     * Versão do instrumento (optimistic locking). Usada pelo modo colaborativo para
+     * evitar sobrescrita silenciosa em edições simultâneas.
+     */
+    private Long version;
 }

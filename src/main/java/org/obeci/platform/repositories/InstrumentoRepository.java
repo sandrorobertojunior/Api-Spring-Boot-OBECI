@@ -2,6 +2,8 @@ package org.obeci.platform.repositories;
 
 import org.obeci.platform.entities.Instrumento;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
+import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;
 
 import java.util.Optional;
@@ -15,4 +17,8 @@ import java.util.Optional;
 public interface InstrumentoRepository extends JpaRepository<Instrumento, Long> {
     Optional<Instrumento> findByTurmaId(Long turmaId);
     boolean existsByTurmaId(Long turmaId);
+
+    @Modifying
+    @Query("update Instrumento i set i.version = 0 where i.version is null")
+    int backfillNullVersions();
 }

@@ -5,6 +5,7 @@ import org.obeci.platform.entities.Instrumento;
 import org.obeci.platform.dtos.InstrumentoDto;
 import org.obeci.platform.entities.InstrumentoImage;
 import org.obeci.platform.services.InstrumentoService;
+import org.obeci.platform.services.InstrumentoCollaborationService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
@@ -15,6 +16,9 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
 import java.util.Optional;
+import java.util.List;
+
+import org.obeci.platform.dtos.collab.InstrumentoChangeLogDto;
 
 @RestController
 @RequestMapping("/api/instrumentos")
@@ -29,6 +33,9 @@ public class InstrumentoController {
     @Autowired
     private InstrumentoService instrumentoService;
 
+    @Autowired
+    private InstrumentoCollaborationService collaborationService;
+
     @GetMapping("/turma/{turmaId}")
     /**
      * Busca instrumento da turma. Se não existir, cria um instrumento vazio (compatibilidade).</n+     *
@@ -38,7 +45,7 @@ public class InstrumentoController {
         Optional<Instrumento> inst = instrumentoService.getByTurmaId(turmaId);
         if (inst.isPresent()) {
             Instrumento i = inst.get();
-            return ResponseEntity.ok(new InstrumentoDto(i.getId(), i.getTurmaId(), i.getSlidesJson()));
+            return ResponseEntity.ok(new InstrumentoDto(i.getId(), i.getTurmaId(), i.getSlidesJson(), i.getVersion()));
         }
         return ResponseEntity.notFound().build();
     }
@@ -55,12 +62,11 @@ public class InstrumentoController {
             return ResponseEntity.notFound().build();
         }
         Instrumento saved = instrumentoService.saveSlides(turmaId, slides);
-        return ResponseEntity.ok(new InstrumentoDto(saved.getId(), saved.getTurmaId(), saved.getSlidesJson()));
+        return ResponseEntity.ok(new InstrumentoDto(saved.getId(), saved.getTurmaId(), saved.getSlidesJson(), saved.getVersion()));
     }
 
     @PutMapping("/turma/{turmaId}")
     /**
-        *
         * Regra:
         * - Para acessar um instrumento, ele deve existir previamente.
         * - O instrumento é criado no fluxo de criação de turma.
@@ -72,7 +78,7 @@ public class InstrumentoController {
             return ResponseEntity.notFound().build();
         }
         Instrumento saved = instrumentoService.saveSlides(turmaId, slides);
-        return ResponseEntity.ok(new InstrumentoDto(saved.getId(), saved.getTurmaId(), saved.getSlidesJson()));
+        return ResponseEntity.ok(new InstrumentoDto(saved.getId(), saved.getTurmaId(), saved.getSlidesJson(), saved.getVersion()));
     }
 
     // Upload de imagem, retorna id e url
@@ -103,5 +109,19 @@ public class InstrumentoController {
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.parseMediaType(img.get().getContentType()));
         return new ResponseEntity<>(img.get().getData(), headers, HttpStatus.OK);
+    }
+
+    @GetMapping("/turma/{turmaId}/changes")
+    /**
+     * Retorna o histórico recente de alterações do instrumento (log de colaboração).
+     *
+     * <p>Uso típico: o front carrega esse endpoint para preencher o painel "Log de alterações"
+     * ao abrir o editor e depois recebe novas entradas em tempo real via WebSocket.</p>
+     */
+    public ResponseEntity<List<InstrumentoChangeLogDto>> getChanges(
+            @PathVariable Long turmaId,
+            @RequestParam(name = "limit", defaultValue = "50") int limit
+    ) {
+        return ResponseEntity.ok(collaborationService.getRecentChanges(turmaId, limit));
     }
 }
