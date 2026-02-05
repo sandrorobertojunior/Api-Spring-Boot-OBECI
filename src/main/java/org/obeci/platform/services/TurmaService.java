@@ -5,8 +5,10 @@ import org.obeci.platform.repositories.TurmaRepository;
 import org.obeci.platform.exceptions.DuplicateTurmaException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 @Service
 /**
@@ -47,6 +49,13 @@ public class TurmaService {
             throw new DuplicateTurmaException("Já existe uma turma com esse nome nesta escola");
         }
 
+        // Normaliza professorIds (sem nulls/duplicados)
+        Set<Long> professorIds = turma.getProfessorIds() == null
+            ? new LinkedHashSet<>()
+            : new LinkedHashSet<>(turma.getProfessorIds());
+        professorIds.removeIf(id -> id == null || id <= 0);
+        turma.setProfessorIds(professorIds);
+
         Turma saved = turmaRepository.save(turma);
         // cria automaticamente um Instrumento vazio para a turma.
         // O erro é ignorado (fail-safe) para não impedir a criação da turma.
@@ -70,7 +79,11 @@ public class TurmaService {
             }
 
             turma.setEscolaId(turmaDetails.getEscolaId());
-            turma.setProfessorId(turmaDetails.getProfessorId());
+            Set<Long> professorIds = turmaDetails.getProfessorIds() == null
+                    ? new LinkedHashSet<>()
+                    : new LinkedHashSet<>(turmaDetails.getProfessorIds());
+            professorIds.removeIf(pid -> pid == null || pid <= 0);
+            turma.setProfessorIds(professorIds);
             turma.setTurno(turmaDetails.getTurno());
             turma.setNome(turmaDetails.getNome());
             turma.setIsActive(turmaDetails.getIsActive());

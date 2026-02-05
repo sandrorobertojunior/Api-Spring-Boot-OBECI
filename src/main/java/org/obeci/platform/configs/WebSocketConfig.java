@@ -37,26 +37,31 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 
     private final JwtHandshakeInterceptor jwtHandshakeInterceptor;
     private final StompAuthChannelInterceptor stompAuthChannelInterceptor;
+    private final AppCorsProperties corsProperties;
 
     public WebSocketConfig(
             JwtHandshakeInterceptor jwtHandshakeInterceptor,
-            StompAuthChannelInterceptor stompAuthChannelInterceptor
+            StompAuthChannelInterceptor stompAuthChannelInterceptor,
+            AppCorsProperties corsProperties
     ) {
         this.jwtHandshakeInterceptor = jwtHandshakeInterceptor;
         this.stompAuthChannelInterceptor = stompAuthChannelInterceptor;
+        this.corsProperties = corsProperties;
     }
 
     @Override
     public void registerStompEndpoints(StompEndpointRegistry registry) {
         // Endpoint do handshake WebSocket.
         // allowedOriginPatterns precisa ser compatível com allowCredentials(true).
+        String[] allowed = corsProperties.getAllowedOrigins() == null
+            ? new String[0]
+            : corsProperties.getAllowedOrigins().toArray(new String[0]);
+
         registry.addEndpoint("/ws")
-                .setAllowedOriginPatterns(
-                        "http://localhost:*",
-                        "http://127.0.0.1:*",
-                        "http://26.134.41.191:*"
-                )
-                .addInterceptors(jwtHandshakeInterceptor);
+            // Reusa exatamente as origens configuradas em app.cors.allowed-origins
+            // (application-dev.yml, application-prod.yml, etc.).
+            .setAllowedOriginPatterns(allowed)
+            .addInterceptors(jwtHandshakeInterceptor);
 
         // Nota: não habilitamos SockJS aqui para manter o fluxo simples e evitar
         // camadas extras (e CORS adicional). Se precisar suportar browsers antigos,

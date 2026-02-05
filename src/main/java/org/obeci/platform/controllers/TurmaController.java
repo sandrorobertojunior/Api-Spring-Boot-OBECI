@@ -12,6 +12,9 @@ import org.springframework.security.core.Authentication;
 import java.util.Collections;
 import org.obeci.platform.services.UsuarioService;
 
+import java.util.LinkedHashSet;
+import java.util.Set;
+
 import java.util.List;
 import java.util.Optional;
 
@@ -48,7 +51,7 @@ public class TurmaController {
      * <p>Regras:
      * <ul>
      *   <li>ADMIN: retorna todas as turmas.</li>
-     *   <li>PROFESSOR: retorna apenas turmas onde {@code professorId} = id do usuário.</li>
+    *   <li>PROFESSOR: retorna apenas turmas onde {@code professorIds} contém o id do usuário.</li>
      *   <li>Outras roles: retorna lista vazia.</li>
      * </ul>
      * </p>
@@ -92,7 +95,10 @@ public class TurmaController {
     public ResponseEntity<Turma> createTurma(@Valid @RequestBody TurmaCreateRequest request) {
         Turma turma = new Turma();
         turma.setEscolaId(request.getEscolaId());
-        turma.setProfessorId(request.getProfessorId());
+        Set<Long> professorIds = request.getProfessorIds() == null
+                ? new LinkedHashSet<>()
+                : new LinkedHashSet<>(request.getProfessorIds());
+        turma.setProfessorIds(professorIds);
         turma.setTurno(request.getTurno());
         turma.setNome(request.getNome());
         turma.setIsActive(request.getIsActive());
@@ -107,7 +113,10 @@ public class TurmaController {
     public ResponseEntity<Turma> updateTurma(@PathVariable Long id, @Valid @RequestBody TurmaUpdateRequest request) {
         Turma turmaDetails = new Turma();
         turmaDetails.setEscolaId(request.getEscolaId());
-        turmaDetails.setProfessorId(request.getProfessorId());
+        Set<Long> professorIds = request.getProfessorIds() == null
+                ? new LinkedHashSet<>()
+                : new LinkedHashSet<>(request.getProfessorIds());
+        turmaDetails.setProfessorIds(professorIds);
         turmaDetails.setTurno(request.getTurno());
         turmaDetails.setNome(request.getNome());
         turmaDetails.setIsActive(request.getIsActive());

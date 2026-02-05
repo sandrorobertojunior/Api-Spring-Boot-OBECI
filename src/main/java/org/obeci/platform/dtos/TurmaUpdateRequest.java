@@ -1,7 +1,10 @@
 package org.obeci.platform.dtos;
 
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
+
+import java.util.List;
 
 /**
  * DTO de atualização de turma.
@@ -12,8 +15,8 @@ public class TurmaUpdateRequest {
     @NotNull(message = "escolaId é obrigatório")
     private Long escolaId;
 
-    @NotNull(message = "professorId é obrigatório")
-    private Long professorId;
+    @NotEmpty(message = "professorIds é obrigatório")
+    private List<Long> professorIds;
 
     @NotBlank(message = "Turno é obrigatório")
     private String turno;
@@ -27,8 +30,8 @@ public class TurmaUpdateRequest {
     public Long getEscolaId() { return escolaId; }
     public void setEscolaId(Long escolaId) { this.escolaId = escolaId; }
 
-    public Long getProfessorId() { return professorId; }
-    public void setProfessorId(Long professorId) { this.professorId = professorId; }
+    public List<Long> getProfessorIds() { return professorIds; }
+    public void setProfessorIds(List<Long> professorIds) { this.professorIds = professorIds; }
 
     public String getTurno() { return turno; }
     public void setTurno(String turno) { this.turno = turno; }

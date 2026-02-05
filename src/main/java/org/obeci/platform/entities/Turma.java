@@ -3,6 +3,8 @@ package org.obeci.platform.entities;
 import jakarta.persistence.*;
 import lombok.Data;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
+import java.util.LinkedHashSet;
+import java.util.Set;
 @Data
 @Entity
 @Table(name = "turmas")
@@ -10,9 +12,9 @@ import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 /**
  * Entidade JPA que representa uma turma.
  *
- * <p>Mapeamento atual usa IDs primitivos ({@code escolaId}, {@code professorId}) em vez de
- * relacionamentos JPA (ManyToOne). Isso simplifica o modelo, mas delega joins/consistência
- * para a camada de serviço ou consultas específicas.</p>
+ * <p>Mapeamento usa IDs primitivos ({@code escolaId} e {@code professorIds}) em vez de
+ * relacionamentos JPA (ManyToOne). O vínculo turma-professor é 1:N e é persistido
+ * na tabela associativa {@code turma_professores}.</p>
  */
 public class Turma {
 
@@ -23,8 +25,13 @@ public class Turma {
     @Column(nullable = false)
     private Long escolaId;
 
-    @Column(nullable = false)
-    private Long professorId;
+        @ElementCollection(fetch = FetchType.EAGER)
+        @CollectionTable(
+            name = "turma_professores",
+            joinColumns = @JoinColumn(name = "turma_id")
+        )
+        @Column(name = "professor_id", nullable = false)
+        private Set<Long> professorIds = new LinkedHashSet<>();
 
     @Column(nullable = false)
     private String turno;
@@ -39,10 +46,12 @@ public class Turma {
 
     }
 
-    public Turma(Long escolaId, Long professorId, String turno, String nome, Boolean isActive) {
+    public Turma(Long escolaId, Set<Long> professorIds, String turno, String nome, Boolean isActive) {
         this();
         this.escolaId = escolaId;
-        this.professorId = professorId;
+        if (professorIds != null) {
+            this.professorIds = professorIds;
+        }
         this.turno = turno;
         this.nome = nome;
         this.isActive = isActive;
