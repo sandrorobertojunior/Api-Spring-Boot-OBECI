@@ -1,135 +1,707 @@
-# Documentação do Backend (OBECI)
+# Backend OBECI Platform (API REST)
 
-Este documento descreve os endpoints principais e os utilitários/funções adicionados para autenticação via JWT + Cookie, além do modo `dev`/`prod`.
+API REST da Plataforma OBECI, responsável por autenticação/autorização e por operações de domínio (usuários, escolas, turmas) e persistência do “Instrumento” (slides) com suporte a colaboração em tempo real via WebSocket (STOMP).
 
-## Perfis (DEV/PROD)
+Base URL (local): http://localhost:9090
 
-O projeto usa profiles do Spring Boot:
+--------------------------------------------------------------------------------
 
-- `dev` (default)
-- `prod`
+## 1. Visão Geral
 
-Arquivos:
+### Propósito
 
-- `src/main/resources/application.yml` (base + `spring.profiles.default=dev`)
-- `src/main/resources/application-dev.yml`
-- `src/main/resources/application-prod.yml`
+Fornecer uma API central para a plataforma OBECI, permitindo:
 
-### Configurações (por propriedade)
+- Autenticação e autoatendimento do usuário logado
+- Gestão (CRUD) de usuários (admin)
+- Gestão (CRUD) de escolas e turmas
+- Persistência e carregamento do Instrumento (documento de slides por turma)
+- Colaboração em tempo real no Instrumento via WebSocket (STOMP)
 
-**CORS** (`app.cors.*`)
+### Principais funcionalidades
 
-- `app.cors.allowed-origins`: lista de origens permitidas
-- `app.cors.allowed-methods`: métodos permitidos
-- `app.cors.allowed-headers`: headers permitidos
-- `app.cors.allow-credentials`: se envia cookies/credenciais
+- Login com JWT (HS256) e cookie HttpOnly (com fallback por header Authorization)
+- Controle de acesso por roles (ADMIN, PROFESSOR)
+- CRUD REST para escolas, turmas e usuários
+- Upload e download de imagens do Instrumento
+- Log de alterações do Instrumento (REST) + updates em tempo real (WebSocket)
 
-**Cookie do token** (`app.auth.cookie.*`)
+--------------------------------------------------------------------------------
 
-- `name`: nome do cookie (default `token`)
-- `http-only`: protege contra acesso via JS (recomendado `true`)
-- `secure`: `true` em HTTPS (recomendado em produção)
-- `same-site`: `Lax` (dev) / `None` (cenários cross-site) / `Strict`
-- `path`: normalmente `/`
-- `max-age-seconds`: tempo de vida do cookie
-- `domain`: opcional (defina apenas quando necessário)
+## 2. Tecnologias Utilizadas
 
-**JWT** (`app.jwt.*`)
+- Java 21
+- Spring Boot 3.5.7
+- Spring Web (REST)
+- Spring Security (autenticação/autorização)
+- Spring Data JPA / Hibernate
+- PostgreSQL (runtime)
+- H2 (testes)
+- Maven (wrapper: mvnw / mvnw.cmd)
+- WebSocket + STOMP (spring-boot-starter-websocket, spring-security-messaging)
+- JWT: JJWT (io.jsonwebtoken)
+- Bean Validation (jakarta.validation)
+- Lombok
+- Hypersistence Utils (arrays e utilitários Hibernate)
 
-- `secret`: segredo HS256 (mínimo 32 bytes). Em produção defina via env `APP_JWT_SECRET`.
-- `expiration-seconds`: expiração do JWT (em segundos)
-- `require-secret`: em `prod` deve ser `true` (API falha ao subir sem secret)
+--------------------------------------------------------------------------------
 
-### Como rodar com profile
+## 3. Arquitetura do Projeto
 
-- Rodar em `dev` (default): só executar normalmente.
-- Rodar em `prod`:
-  - setar `SPRING_PROFILES_ACTIVE=prod`
-  - setar `APP_JWT_SECRET` (obrigatório)
+### Organização de pacotes (visão geral)
 
-## Autenticação
+- org.obeci.platform.controllers
+  - Controllers REST e controller STOMP (WebSocket)
+- org.obeci.platform.services
+  - Regras de negócio e integração com repositórios
+- org.obeci.platform.repositories
+  - Spring Data JPA repositories
+- org.obeci.platform.entities
+  - Entidades JPA (Usuario, Escola, Turma, Instrumento, etc.)
+- org.obeci.platform.dtos
+  - DTOs de request/response para contratos REST
+- org.obeci.platform.dtos.collab
+  - DTOs para colaboração (WebSocket e log)
+- org.obeci.platform.configs
+  - Configurações (Security, JWT, CORS, WebSocket, ExceptionHandler, etc.)
+- org.obeci.platform.exceptions
+  - Exceções de domínio (ex.: DuplicateTurmaException)
 
-- Login gera um JWT e envia de duas formas:
-  - cookie HttpOnly (principal)
-  - corpo da resposta `{ token, username }` (compatibilidade)
+### Padrões adotados
 
-- O filtro `JwtRequestFilter` aceita:
-  - `Authorization: Bearer <token>` (header)
-  - cookie `token` (default)
+- REST (controllers com rotas sob /api e /auth)
+- DTOs para entradas (Create/Update) e respostas específicas (ex.: InstrumentoDto)
+- JPA/Hibernate para persistência
+- Autenticação stateless com JWT
+- Autorização baseada em roles (hasRole)
+- Colaboração em tempo real via STOMP (destinos /app, /topic, /user/queue)
 
-- Se o token estiver inválido/expirado, o backend manda um `Set-Cookie` expirando o cookie.
+Observação: o projeto não segue Clean Architecture estrita; a separação principal é por camadas (controller/service/repository).
 
-## Endpoints
+--------------------------------------------------------------------------------
 
-### Auth (`/auth`)
+## 4. Pré-requisitos
 
-- `POST /auth/login`
-  - Autentica email/senha
-  - Retorna cookie `token` (HttpOnly) e também `{ token, username }`
+- Java 21 (JDK)
+- Maven (opcional, pois há Maven Wrapper no repositório)
+- PostgreSQL (para execução local em perfil dev)
+- Docker: A definir (não há arquivos Docker/Docker Compose neste repositório)
 
-- `POST /auth/logout`
-  - Limpa o cookie `token`
+--------------------------------------------------------------------------------
 
-- `GET /auth/me`
-  - Retorna dados do usuário autenticado (username, email, roles)
-  - Se não autenticado: retorna `401` e limpa cookie
+## 5. Configuração do Ambiente
 
-- `PUT /auth/me`
-  - Atualiza dados do próprio usuário
-  - Requer autenticação
-  - Se o usuário mudar o email, o JWT é reemitido e o cookie atualizado
+### Perfis
 
-- `POST /auth/register`
-  - Cria usuário
-  - **Requer role ADMIN**
+- dev (padrão)
+- prod
 
-### Usuários (`/api/usuarios`)
+Arquivos relevantes:
 
-- `/api/usuarios/**`
-  - **Somente ADMIN** (CRUD)
+- src/main/resources/application.yml (base + perfil padrão dev)
+- src/main/resources/application-dev.yml
+- src/main/resources/application-prod.yml
 
-### Escolas (`/api/escolas`)
+### Banco de dados
 
-- `GET /api/escolas/**`: autenticado
-- `POST/PUT/DELETE /api/escolas/**`: ADMIN
+Perfil dev (exemplo atual):
 
-### Turmas (`/api/turmas`)
+- URL: jdbc:postgresql://localhost:5432/coesterdb
+- Usuário: admin
+- Senha: admin
 
-- `GET /api/turmas/**`: autenticado
-- `POST/PUT/DELETE /api/turmas/**`: ADMIN
+Perfil prod (via variáveis de ambiente com defaults definidos no YAML):
 
-### Publicações (`/api/publicacoes`)
+- OBECI_DB_URL (default: jdbc:postgresql://the-fool.site:5432/obecidb)
+- OBECI_DB_USERNAME (default: obeci)
+- OBECI_DB_PASSWORD (default: #Projeto10)
 
-- `/api/publicacoes/**`: autenticado
+JPA / Hibernate:
 
-## Funções/Classes (o que foi centralizado)
+- spring.jpa.hibernate.ddl-auto = update
+  - Atenção: update é útil em desenvolvimento, mas pode ser arriscado em produção.
 
-### `TokenCookieService`
+### Variáveis de ambiente (principais)
 
-Responsável por centralizar:
+- SPRING_PROFILES_ACTIVE
+  - dev (padrão) ou prod
+- APP_JWT_SECRET
+  - Obrigatória em produção (require-secret=true)
+- OBECI_DB_URL, OBECI_DB_USERNAME, OBECI_DB_PASSWORD
+  - Usadas no perfil prod
 
-- `createAuthCookie(token)`: cria o cookie de autenticação com as flags corretas por ambiente
-- `clearAuthCookie()`: expira o cookie (logout/invalidar)
-- `getCookieName()`: nome configurável do cookie
+### CORS e cookies
 
-### `AuthCookieProperties`
+Configurações em app.cors e app.auth.cookie nos arquivos application-*.yml.
 
-Properties para o cookie (`app.auth.cookie.*`).
+Em produção (cookies cross-site), normalmente se usa:
 
-### `JwtProperties`
+- cookie secure=true
+- same-site=None
+- allow-credentials=true
 
-Properties para JWT (`app.jwt.*`), incluindo `require-secret` para produção.
+--------------------------------------------------------------------------------
 
-### `AppCorsProperties`
+## 6. Como Executar o Projeto
 
-Properties de CORS (`app.cors.*`), removendo hardcode de origem.
+### Execução local (dev)
 
-### `JwtUtil`
+1) Suba o PostgreSQL e crie o banco coesterdb (ou ajuste o application-dev.yml).
 
-- Usa `app.jwt.secret` + `expiration-seconds`
-- Em `prod`, `require-secret=true` impede subir sem segredo
+2) Execute o backend:
 
-### `JwtRequestFilter`
+~~~bash
+./mvnw spring-boot:run
+~~~
 
-- Lê token do header Bearer ou do cookie configurado
-- Limpa cookie quando token é inválido/expirado
+No Windows, alternativamente:
+
+~~~powershell
+./mvnw.cmd spring-boot:run
+~~~
+
+### Execução com profile prod
+
+Defina as variáveis e execute com o profile prod:
+
+~~~powershell
+$env:SPRING_PROFILES_ACTIVE = "prod"
+$env:APP_JWT_SECRET = "coloque-um-segredo-com-pelo-menos-32-caracteres"
+./mvnw.cmd spring-boot:run
+~~~
+
+### Docker
+
+A definir. Não há Dockerfile ou docker-compose.yml neste repositório.
+
+--------------------------------------------------------------------------------
+
+## 7. Autenticação e Segurança
+
+### Tipo de autenticação
+
+JWT (HS256) com:
+
+- Cookie HttpOnly (nome configurável; padrão: token)
+- Header Authorization: Bearer (compatibilidade)
+
+O filtro JwtRequestFilter tenta, nesta ordem:
+
+1) Authorization: Bearer <token>
+2) Cookie HttpOnly (token)
+
+Se o token estiver inválido ou expirado, o backend adiciona Set-Cookie para limpar o cookie.
+
+### Como obter e utilizar o token
+
+1) Faça login em POST /auth/login.
+2) O backend retorna:
+   - Set-Cookie: token=... (HttpOnly)
+   - Corpo JSON com token e username
+
+O cliente pode:
+
+- Usar cookie (recomendado, especialmente em produção)
+- Ou enviar Authorization: Bearer <token>
+
+### Headers HTTP necessários
+
+- Content-Type: application/json (para requests com JSON)
+- Authorization: Bearer <token> (quando não estiver usando cookie)
+
+### Autorização (roles)
+
+Regras principais (SecurityConfiguration):
+
+- POST /auth/register: somente ADMIN
+- /api/usuarios/**: somente ADMIN
+- /api/escolas/**:
+  - GET autenticado
+  - POST/PUT/DELETE somente ADMIN
+- /api/turmas/**:
+  - GET autenticado
+  - POST/PUT/DELETE somente ADMIN
+- /auth/me:
+  - GET permitido, mas retorna 401 se não autenticado
+  - PUT requer autenticação
+- /auth/me/lembretes/**: autenticado
+- Demais rotas: autenticado
+
+Observação: em Spring Security, roles geralmente viram authorities com prefixo ROLE_. O projeto usa hasRole("ADMIN") / hasRole("PROFESSOR").
+
+--------------------------------------------------------------------------------
+
+## 8. Endpoints da API
+
+### Convenções
+
+- Todas as rotas REST ficam em /auth ou /api
+- Porta padrão: 9090
+
+### Autenticação e autoatendimento (AuthController)
+
+Base: /auth
+
+- POST /auth/login
+  - Descrição: autentica email/senha e emite JWT (cookie + corpo)
+  - Auth: pública
+
+Request (JSON):
+
+~~~json
+{
+  "email": "admin@exemplo.com",
+  "password": "minhaSenha" 
+}
+~~~
+
+Response 200 (JSON) + Set-Cookie:
+
+~~~json
+{
+  "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "username": "Admin"
+}
+~~~
+
+- POST /auth/logout
+  - Descrição: expira o cookie de autenticação
+  - Auth: pública
+  - Response: 200 (texto)
+
+- GET /auth/me
+  - Descrição: retorna dados do usuário logado
+  - Auth: permitida, mas retorna 401 se não autenticado
+
+Response 200 (JSON):
+
+~~~json
+{
+  "username": "Admin",
+  "email": "admin@exemplo.com",
+  "arrayRoles": ["ADMIN"]
+}
+~~~
+
+- PUT /auth/me
+  - Descrição: atualiza dados do próprio usuário; se mudar email, reemite JWT e atualiza cookie
+  - Auth: autenticado
+
+Request (JSON) exemplo (campos opcionais):
+
+~~~json
+{
+  "username": "Professor João (Atualizado)",
+  "email": "joao.novo@escola.com",
+  "password": "novaSenha123",
+  "cpf": "12345678900"
+}
+~~~
+
+Response 200 (JSON) exemplo (e, se email mudar, também Set-Cookie):
+
+~~~json
+{
+  "username": "Professor João (Atualizado)",
+  "email": "joao.novo@escola.com",
+  "arrayRoles": ["PROFESSOR"]
+}
+~~~
+
+- GET /auth/me/lembretes
+  - Descrição: lista lembretes do usuário autenticado
+  - Auth: autenticado
+
+Response 200 (JSON):
+
+~~~json
+[
+  "Lembrar de atualizar o Instrumento da Turma A",
+  "Reunião com coordenação às 14h"
+]
+~~~
+
+- POST /auth/me/lembretes
+  - Descrição: adiciona um lembrete
+  - Auth: autenticado
+
+Request (JSON):
+
+~~~json
+{ "text": "Comprar materiais para a aula" }
+~~~
+
+- PUT /auth/me/lembretes/{index}
+  - Descrição: atualiza lembrete pelo índice
+  - Auth: autenticado
+
+- DELETE /auth/me/lembretes/{index}
+  - Descrição: remove lembrete pelo índice
+  - Auth: autenticado
+
+- POST /auth/register
+  - Descrição: registra um novo usuário
+  - Auth: somente ADMIN
+
+Request (JSON):
+
+~~~json
+{
+  "username": "Professor João",
+  "email": "joao@escola.com",
+  "password": "senha123",
+  "cpf": "12345678900",
+  "arrayRoles": ["PROFESSOR"]
+}
+~~~
+
+Response 200: retorna a entidade Usuario (inclui campos como id, username, email, cpf, arrayRoles e datas).
+
+### Usuários (UsuarioController)
+
+Base: /api/usuarios (somente ADMIN)
+
+- GET /api/usuarios
+  - Descrição: lista usuários
+
+- GET /api/usuarios/{id}
+  - Descrição: obtém usuário por id (retorna Optional no corpo)
+
+- POST /api/usuarios
+  - Descrição: cria usuário (admin)
+
+- PUT /api/usuarios/{id}
+  - Descrição: atualiza usuário
+
+- DELETE /api/usuarios/{id}
+  - Descrição: remove usuário
+
+- GET /api/usuarios/role/{role}?q=termo
+  - Descrição: lista usuários por role, com busca opcional
+
+- GET /api/usuarios/professores
+  - Descrição: lista professores em formato resumido
+
+Response 200 (JSON) exemplo:
+
+~~~json
+[
+  { "id": 10, "username": "Professor João", "email": "joao@escola.com" },
+  { "id": 11, "username": "Professora Ana", "email": "ana@escola.com" }
+]
+~~~
+
+### Escolas (EscolaController)
+
+Base: /api/escolas
+
+- GET /api/escolas
+  - Descrição: lista escolas (autenticado)
+
+- GET /api/escolas/{id}
+  - Descrição: obtém escola por id (retorna Optional no corpo)
+
+- POST /api/escolas
+  - Descrição: cria escola (somente ADMIN)
+
+Request (JSON):
+
+~~~json
+{
+  "nome": "Escola Municipal Exemplo",
+  "cidade": "São Paulo",
+  "isActive": true
+}
+~~~
+
+Response 200 (JSON):
+
+~~~json
+{
+  "id": 1,
+  "nome": "Escola Municipal Exemplo",
+  "isActive": true
+}
+~~~
+
+Observação: o campo cidade é validado no DTO, mas não é persistido na entidade atual.
+
+- PUT /api/escolas/{id}
+  - Descrição: atualiza escola (somente ADMIN)
+
+- DELETE /api/escolas/{id}
+  - Descrição: remove escola (somente ADMIN)
+
+- GET /api/escolas/ativo/{isActive}
+  - Descrição: lista escolas por status
+
+- GET /api/escolas/nome/{nome}
+  - Descrição: busca por nome contendo o valor
+
+### Turmas (TurmaController)
+
+Base: /api/turmas
+
+- GET /api/turmas
+  - Descrição: lista todas as turmas (autenticado)
+
+- GET /api/turmas/mine
+  - Descrição: lista turmas visíveis ao usuário atual
+  - Regra:
+    - ADMIN: todas
+    - PROFESSOR: turmas onde professorIds contém o id do usuário
+    - Outras roles: lista vazia
+
+- GET /api/turmas/{id}
+  - Descrição: obtém turma por id (retorna Optional no corpo)
+
+- POST /api/turmas
+  - Descrição: cria turma (somente ADMIN)
+
+Request (JSON):
+
+~~~json
+{
+  "escolaId": 1,
+  "professorIds": [10, 11],
+  "turno": "Manhã",
+  "nome": "Turma A",
+  "isActive": true
+}
+~~~
+
+Response 200 (JSON):
+
+~~~json
+{
+  "id": 100,
+  "escolaId": 1,
+  "professorIds": [10, 11],
+  "turno": "Manhã",
+  "nome": "Turma A",
+  "isActive": true
+}
+~~~
+
+- PUT /api/turmas/{id}
+  - Descrição: atualiza turma (somente ADMIN)
+
+- DELETE /api/turmas/{id}
+  - Descrição: remove turma (somente ADMIN)
+
+- GET /api/turmas/escola/{escolaId}
+  - Descrição: lista turmas por escola
+
+- GET /api/turmas/professor/{professorId}
+  - Descrição: lista turmas por professor
+
+### Instrumentos (InstrumentoController)
+
+Base: /api/instrumentos (autenticado)
+
+- GET /api/instrumentos/turma/{turmaId}
+  - Descrição: busca o instrumento da turma
+  - Response 200 (InstrumentoDto) ou 404
+
+Response 200 (JSON) exemplo:
+
+~~~json
+{
+  "id": 500,
+  "turmaId": 100,
+  "slidesJson": "[{\"id\":1,\"textBoxes\":[],\"images\":[]}]",
+  "version": 21
+}
+~~~
+
+- POST /api/instrumentos/turma/{turmaId}
+  - Descrição: cria/substitui slides do instrumento da turma
+  - Request body: JSON livre (JsonNode)
+  - Response: InstrumentoDto
+
+- PUT /api/instrumentos/turma/{turmaId}
+  - Descrição: atualiza slides do instrumento da turma
+  - Request body: JSON livre (JsonNode)
+  - Response: InstrumentoDto
+
+Request (JSON) exemplo (estrutura simplificada):
+
+~~~json
+[
+  {
+    "id": 1,
+    "content": "",
+    "textBoxes": [
+      { "id": 1, "x": 120, "y": 80, "content": "Título", "fontSize": 24 }
+    ],
+    "images": [
+      { "id": 1, "x": 50, "y": 50, "width": 200, "height": 120, "src": "/api/instrumentos/images/9" }
+    ]
+  }
+]
+~~~
+
+- POST /api/instrumentos/images
+  - Descrição: upload de imagem (multipart/form-data; campo file)
+  - Response 200: URL relativa da imagem
+
+Response 200 (texto) exemplo:
+
+~~~
+/api/instrumentos/images/9
+~~~
+
+- GET /api/instrumentos/images/{id}
+  - Descrição: download binário da imagem (Content-Type conforme armazenado)
+
+- GET /api/instrumentos/turma/{turmaId}/changes?limit=50
+  - Descrição: retorna histórico recente de alterações (log)
+  - Response 200: lista de InstrumentoChangeLogDto
+
+Response 200 (JSON) exemplo:
+
+~~~json
+[
+  {
+    "id": 1,
+    "instrumentoId": 500,
+    "turmaId": 100,
+    "actor": "admin@exemplo.com",
+    "eventType": "SNAPSHOT_UPDATE",
+    "summary": "Editou texto no Slide 1",
+    "payloadJson": null,
+    "createdAt": "2026-02-05T13:10:12"
+  }
+]
+~~~
+
+### WebSocket (colaboração em tempo real)
+
+Handshake WebSocket:
+
+- GET /ws
+
+Destinos STOMP (InstrumentoWsController):
+
+- Cliente envia para: /app/instrumentos/update
+- Broadcast do servidor: /topic/instrumentos/{turmaId}
+- Erros por usuário: /user/queue/instrumentos/errors
+
+Mensagem enviada pelo cliente (InstrumentoWsUpdateRequest) exemplo:
+
+~~~json
+{
+  "turmaId": 100,
+  "slides": [{ "id": 1, "textBoxes": [], "images": [] }],
+  "expectedVersion": 21,
+  "clientId": "c2f7b0f2-3b8d-4a5b-9e07-7a3c0f2d1a10",
+  "summary": "Atualizou imagem no Slide 1",
+  "eventType": "SNAPSHOT_UPDATE"
+}
+~~~
+
+Broadcast do servidor (InstrumentoWsUpdateBroadcast) exemplo:
+
+~~~json
+{
+  "instrumentoId": 500,
+  "turmaId": 100,
+  "slides": [{ "id": 1, "textBoxes": [], "images": [] }],
+  "version": 22,
+  "updatedBy": "admin@exemplo.com",
+  "updatedAt": "2026-02-05T13:12:33",
+  "clientId": "c2f7b0f2-3b8d-4a5b-9e07-7a3c0f2d1a10",
+  "changeLog": {
+    "id": 2,
+    "instrumentoId": 500,
+    "turmaId": 100,
+    "actor": "admin@exemplo.com",
+    "eventType": "SNAPSHOT_UPDATE",
+    "summary": "Atualizou imagem no Slide 1",
+    "payloadJson": null,
+    "createdAt": "2026-02-05T13:12:33"
+  }
+}
+~~~
+
+--------------------------------------------------------------------------------
+
+## 9. Tratamento de Erros
+
+### Padrão de erros
+
+O projeto centraliza parte do tratamento em GlobalExceptionHandler.
+
+- Erro simples:
+
+~~~json
+{ "error": "Mensagem de erro" }
+~~~
+
+- Erro de validação (Bean Validation):
+
+~~~json
+{
+  "error": "Validation failed",
+  "errors": [
+    { "field": "email", "message": "Email é obrigatório" },
+    { "field": "password", "message": "Senha deve ter pelo menos 6 caracteres" }
+  ]
+}
+~~~
+
+Observação: alguns endpoints (ex.: login/me) retornam texto simples em 401. Se for necessário padronizar 100% para JSON, isso pode ser evoluído.
+
+### Códigos HTTP utilizados (principais)
+
+- 200 OK: sucesso
+- 400 Bad Request: validação e RuntimeException (fallback)
+- 401 Unauthorized: não autenticado / credenciais inválidas
+- 404 Not Found: recurso não encontrado (em alguns endpoints)
+- 409 Conflict: duplicidade de turma (DuplicateTurmaException)
+
+--------------------------------------------------------------------------------
+
+## 10. Testes
+
+### Tipos de testes
+
+- Testes automatizados com spring-boot-starter-test (integração/contexto)
+- spring-security-test para cenários de segurança
+
+### Como executar
+
+~~~bash
+./mvnw test
+~~~
+
+No Windows:
+
+~~~powershell
+./mvnw.cmd test
+~~~
+
+--------------------------------------------------------------------------------
+
+## 11. Boas Práticas e Observações
+
+- JWT secret em produção
+  - Em prod, app.jwt.require-secret=true e APP_JWT_SECRET deve estar definido.
+
+- Cookies cross-site
+  - Para frontend e backend em domínios diferentes, use secure=true, same-site=None e allow-credentials=true.
+
+- DDL automático
+  - spring.jpa.hibernate.ddl-auto=update pode ser perigoso em produção. Considere migrações (Flyway/Liquibase) em evolução futura.
+
+- Respostas Optional
+  - Alguns endpoints retornam Optional no corpo; se for necessário, pode-se padronizar para 404 quando vazio.
+
+- Endpoint /api/publicacoes
+  - A configuração de segurança menciona /api/publicacoes/**, porém não há controller correspondente no código atual. Status: A definir.
+
+--------------------------------------------------------------------------------
+
+## 12. Licença
+
+Uso interno.
