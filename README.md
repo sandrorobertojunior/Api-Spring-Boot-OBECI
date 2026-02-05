@@ -104,17 +104,17 @@ Arquivos relevantes:
 
 ### Banco de dados
 
-Perfil dev (exemplo atual):
+Perfil dev:
 
-- URL: jdbc:postgresql://localhost:5432/coesterdb
-- Usuário: admin
-- Senha: admin
+- URL: 
+- Usuário: 
+- Senha:
 
 Perfil prod (via variáveis de ambiente com defaults definidos no YAML):
 
-- OBECI_DB_URL (default: jdbc:postgresql://the-fool.site:5432/obecidb)
-- OBECI_DB_USERNAME (default: obeci)
-- OBECI_DB_PASSWORD (default: #Projeto10)
+- OBECI_DB_URL 
+- OBECI_DB_USERNAME 
+- OBECI_DB_PASSWORD 
 
 JPA / Hibernate:
 
@@ -697,11 +697,10 @@ No Windows:
 - Respostas Optional
   - Alguns endpoints retornam Optional no corpo; se for necessário, pode-se padronizar para 404 quando vazio.
 
-- Endpoint /api/publicacoes
-  - A configuração de segurança menciona /api/publicacoes/**, porém não há controller correspondente no código atual. Status: A definir.
-
 --------------------------------------------------------------------------------
 
 ## 12. Licença
 
 Uso interno.
+
+![alt text](image.png)
