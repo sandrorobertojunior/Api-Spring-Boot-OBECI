@@ -4,9 +4,11 @@ import jakarta.persistence.OptimisticLockException;
 import org.obeci.platform.dtos.collab.InstrumentoWsUpdateBroadcast;
 import org.obeci.platform.dtos.collab.InstrumentoWsUpdateRequest;
 import org.obeci.platform.services.InstrumentoCollaborationService;
+import org.obeci.platform.services.InstrumentoAccessService;
 import org.springframework.messaging.handler.annotation.MessageExceptionHandler;
 import org.springframework.messaging.handler.annotation.MessageMapping;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
+import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Controller;
 
 import java.security.Principal;
@@ -31,15 +33,21 @@ public class InstrumentoWsController {
 
     private final InstrumentoCollaborationService collaborationService;
     private final SimpMessagingTemplate messagingTemplate;
+    private final InstrumentoAccessService instrumentoAccessService;
 
-    public InstrumentoWsController(InstrumentoCollaborationService collaborationService, SimpMessagingTemplate messagingTemplate) {
+    public InstrumentoWsController(
+            InstrumentoCollaborationService collaborationService,
+            SimpMessagingTemplate messagingTemplate,
+            InstrumentoAccessService instrumentoAccessService
+    ) {
         this.collaborationService = collaborationService;
         this.messagingTemplate = messagingTemplate;
+        this.instrumentoAccessService = instrumentoAccessService;
     }
 
     @MessageMapping("/instrumentos/update")
-    public void updateInstrumento(InstrumentoWsUpdateRequest req, Principal principal) {
-        if (principal == null || principal.getName() == null) {
+    public void updateInstrumento(InstrumentoWsUpdateRequest req, Authentication authentication) {
+        if (authentication == null || authentication.getName() == null) {
             // Sem user na sessão STOMP -> não permitir update.
             messagingTemplate.convertAndSendToUser(
                     "anonymous",
@@ -49,7 +57,21 @@ public class InstrumentoWsController {
             return;
         }
 
-        String actor = principal.getName();
+        // Só ADMIN ou professor pertencente à turma pode publicar updates.
+        if (req != null) {
+            try {
+                instrumentoAccessService.assertCanAccessTurmaInstrumento(req.getTurmaId(), authentication);
+            } catch (Exception e) {
+                messagingTemplate.convertAndSendToUser(
+                        authentication.getName(),
+                        "/queue/instrumentos/errors",
+                        new WsError("FORBIDDEN", "Sem permissão para acessar este instrumento", req.getTurmaId(), req.getClientId())
+                );
+                return;
+            }
+        }
+
+        String actor = authentication.getName();
 
         try {
             InstrumentoWsUpdateBroadcast broadcast = collaborationService.applySnapshotUpdate(

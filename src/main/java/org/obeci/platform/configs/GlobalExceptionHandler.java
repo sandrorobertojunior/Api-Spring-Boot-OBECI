@@ -5,6 +5,7 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.obeci.platform.exceptions.DuplicateTurmaException;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.util.HashMap;
 import java.util.List;
@@ -58,6 +59,23 @@ public class GlobalExceptionHandler {
         body.put("error", "Validation failed");
         body.put("errors", errors);
         return ResponseEntity.badRequest().body(body);
+    }
+
+    @ExceptionHandler(ResponseStatusException.class)
+    /**
+     * Preserva o status HTTP de {@link ResponseStatusException}.
+     *
+     * <p>Importante para endpoints que lançam 401/403/404 e não devem ser
+     * rebaixados para 400 pelo handler genérico de RuntimeException.</p>
+     */
+    public ResponseEntity<Map<String, Object>> handleResponseStatus(ResponseStatusException ex) {
+        Map<String, Object> body = new HashMap<>();
+        String message = ex.getReason();
+        if (message == null || message.isBlank()) {
+            message = ex.getMessage();
+        }
+        body.put("error", message);
+        return ResponseEntity.status(ex.getStatusCode()).body(body);
     }
 
     @ExceptionHandler(RuntimeException.class)

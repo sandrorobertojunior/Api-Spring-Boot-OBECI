@@ -6,11 +6,13 @@ import org.obeci.platform.dtos.InstrumentoDto;
 import org.obeci.platform.entities.InstrumentoImage;
 import org.obeci.platform.services.InstrumentoService;
 import org.obeci.platform.services.InstrumentoCollaborationService;
+import org.obeci.platform.services.InstrumentoAccessService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -35,13 +37,18 @@ public class InstrumentoController {
 
     @Autowired
     private InstrumentoCollaborationService collaborationService;
+    @Autowired
+    private InstrumentoAccessService instrumentoAccessService;
 
     @GetMapping("/turma/{turmaId}")
     /**
-     * Busca instrumento da turma. Se não existir, cria um instrumento vazio (compatibilidade).</n+     *
+     * Busca instrumento da turma.
+     *
      * <p>Saída: {@link InstrumentoDto} contendo id, turmaId e JSON dos slides.</p>
      */
-    public ResponseEntity<InstrumentoDto> getByTurma(@PathVariable Long turmaId) {
+    public ResponseEntity<InstrumentoDto> getByTurma(@PathVariable("turmaId") Long turmaId, Authentication authentication) {
+        // Só ADMIN ou professor pertencente à turma podem acessar.
+        instrumentoAccessService.assertCanAccessTurmaInstrumento(turmaId, authentication);
         Optional<Instrumento> inst = instrumentoService.getByTurmaId(turmaId);
         if (inst.isPresent()) {
             Instrumento i = inst.get();
@@ -57,7 +64,8 @@ public class InstrumentoController {
      * <p>Entrada: body JSON arbitrário (Jackson {@link JsonNode}).</p>
      * <p>Saída: {@link InstrumentoDto} salvo.</p>
      */
-    public ResponseEntity<InstrumentoDto> createOrReplace(@PathVariable Long turmaId, @RequestBody JsonNode slides) throws IOException {
+    public ResponseEntity<InstrumentoDto> createOrReplace(@PathVariable("turmaId") Long turmaId, @RequestBody JsonNode slides, Authentication authentication) throws IOException {
+        instrumentoAccessService.assertCanAccessTurmaInstrumento(turmaId, authentication);
         if (instrumentoService.getByTurmaId(turmaId).isEmpty()) {
             return ResponseEntity.notFound().build();
         }
@@ -73,7 +81,8 @@ public class InstrumentoController {
      *
      * <p>Entrada: body JSON arbitrário (Jackson {@link JsonNode}).</p>
      */
-    public ResponseEntity<InstrumentoDto> update(@PathVariable Long turmaId, @RequestBody JsonNode slides) throws IOException {
+    public ResponseEntity<InstrumentoDto> update(@PathVariable("turmaId") Long turmaId, @RequestBody JsonNode slides, Authentication authentication) throws IOException {
+        instrumentoAccessService.assertCanAccessTurmaInstrumento(turmaId, authentication);
         if (instrumentoService.getByTurmaId(turmaId).isEmpty()) {
             return ResponseEntity.notFound().build();
         }
@@ -101,7 +110,7 @@ public class InstrumentoController {
      *
      * <p>Saída: bytes + Content-Type conforme armazenado.</p>
      */
-    public ResponseEntity<byte[]> getImage(@PathVariable Long id) {
+    public ResponseEntity<byte[]> getImage(@PathVariable("id") Long id) {
         Optional<InstrumentoImage> img = instrumentoService.getImage(id);
         if (img.isEmpty()) {
             return ResponseEntity.notFound().build();
@@ -118,10 +127,11 @@ public class InstrumentoController {
      * <p>Uso típico: o front carrega esse endpoint para preencher o painel "Log de alterações"
      * ao abrir o editor e depois recebe novas entradas em tempo real via WebSocket.</p>
      */
-    public ResponseEntity<List<InstrumentoChangeLogDto>> getChanges(
-            @PathVariable Long turmaId,
-            @RequestParam(name = "limit", defaultValue = "50") int limit
-    ) {
+        public ResponseEntity<List<InstrumentoChangeLogDto>> getChanges(
+            @PathVariable("turmaId") Long turmaId,
+            @RequestParam(name = "limit", defaultValue = "50") int limit,
+            Authentication authentication) {
+        instrumentoAccessService.assertCanAccessTurmaInstrumento(turmaId, authentication);
         return ResponseEntity.ok(collaborationService.getRecentChanges(turmaId, limit));
     }
 }
